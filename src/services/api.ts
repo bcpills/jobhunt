@@ -1,5 +1,24 @@
 import { CandidateProfile, JobOpening, TailoredResume, CoverLetter, CompanyResearchData } from '../types';
 
+export async function convertDocumentToPlainText(params: {
+  fileBase64: string;
+  mimeType: string;
+  fileName: string;
+}): Promise<{ plainText: string; source: string; note?: string }> {
+  const response = await fetch('/api/resume/convert-to-text', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to convert document to plain text.');
+  }
+
+  return await response.json();
+}
+
 export async function analyzeResume(params: {
   resumeText?: string;
   fileBase64?: string;
