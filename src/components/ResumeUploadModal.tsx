@@ -56,9 +56,10 @@ export const ResumeUploadModal: React.FC<ResumeUploadModalProps> = ({
     if (!selectedFile) return;
     setErrorMessage(null);
 
-    const isText = selectedFile.name.endsWith('.txt') || selectedFile.name.endsWith('.md');
+    const fileNameLower = selectedFile.name.toLowerCase();
+    const isPlainText = fileNameLower.endsWith('.txt') || fileNameLower.endsWith('.md');
 
-    if (isText) {
+    if (isPlainText) {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target?.result as string;
@@ -73,34 +74,44 @@ export const ResumeUploadModal: React.FC<ResumeUploadModalProps> = ({
         setErrorMessage('Unable to read selected text file. Please try pasting its content.');
       };
       reader.readAsText(selectedFile);
-    } else {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64 = e.target?.result as string;
-        try {
-          await onAnalyzeFile(base64, selectedFile.type || 'application/pdf', selectedFile.name);
-          onClose();
-        } catch (err: any) {
-          setErrorMessage(
-            err.message || 'Analysis failed. Tip: You can also copy and paste your resume text under the "Paste Resume Text" tab.'
-          );
-        }
-      };
-      reader.onerror = () => {
-        setErrorMessage('Error reading file. Please try pasting the resume text directly.');
-      };
-      reader.readAsDataURL(selectedFile);
+      return;
     }
+
+    // For PDF, DOCX, or other formatted documents: read as DataURL (base64)
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = e.target?.result as string;
+      try {
+        let mime = selectedFile.type;
+        if (!mime) {
+          if (fileNameLower.endsWith('.pdf')) mime = 'application/pdf';
+          else if (fileNameLower.endsWith('.docx')) mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          else if (fileNameLower.endsWith('.doc')) mime = 'application/msword';
+          else mime = 'application/pdf';
+        }
+        await onAnalyzeFile(base64, mime, selectedFile.name);
+        onClose();
+      } catch (err: any) {
+        setErrorMessage(
+          err.message || 'Analysis could not process this document format. Please copy and paste the formatted text directly into the "Paste Resume Text" tab.'
+        );
+      }
+    };
+    reader.onerror = () => {
+      setErrorMessage('Error reading file. Please try pasting the resume text directly.');
+    };
+    reader.readAsDataURL(selectedFile);
   };
 
   const handleProcessPaste = async () => {
-    if (!pastedText.trim() || pastedText.trim().length < 50) {
-      setErrorMessage('Please provide a complete resume with at least your work history, skills, and background.');
+    const trimmed = pastedText.trim();
+    if (!trimmed || trimmed.length < 20) {
+      setErrorMessage('Please paste your resume text (skills, work experience, or summary).');
       return;
     }
     setErrorMessage(null);
     try {
-      await onAnalyzeText(pastedText);
+      await onAnalyzeText(trimmed);
       onClose();
     } catch (err: any) {
       setErrorMessage(err.message || 'Analysis failed. Please try again.');

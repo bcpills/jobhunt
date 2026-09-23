@@ -143,6 +143,35 @@ function extractFallbackProfileFromText(text: string, fileName?: string): any {
   };
 }
 
+// Helper: extract raw text from binary base64 if it's plaintext, RTF, HTML, or DOCX XML
+function tryExtractTextFromBase64(base64: string): string {
+  try {
+    const buffer = Buffer.from(base64, 'base64');
+    const rawStr = buffer.toString('utf-8');
+
+    // If it looks like HTML, strip tags
+    if (rawStr.includes('<html') || rawStr.includes('<body') || rawStr.includes('<div') || rawStr.includes('<p>')) {
+      const cleaned = rawStr.replace(/<style[\s\S]*?<\/style>/gi, '')
+                            .replace(/<script[\s\S]*?<\/script>/gi, '')
+                            .replace(/<[^>]+>/g, ' ')
+                            .replace(/&nbsp;/g, ' ')
+                            .replace(/&amp;/g, '&')
+                            .replace(/\s{2,}/g, ' ')
+                            .trim();
+      if (cleaned.length > 50) return cleaned;
+    }
+
+    // If it contains printable text (at least 70% ASCII printable)
+    const printableChars = rawStr.replace(/[^\x20-\x7E\t\n\r]/g, '');
+    if (printableChars.length > 50 && printableChars.length / rawStr.length > 0.6) {
+      return printableChars;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return '';
+}
+
 // 1. Analyze Resume Endpoint
 app.post('/api/resume/analyze', async (req: Request, res: Response) => {
   const { resumeText, fileBase64, mimeType, fileName } = req.body;
@@ -151,27 +180,78 @@ app.post('/api/resume/analyze', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Resume text or file data is required.' });
   }
 
+  // Pre-check: if fileBase64 contains embedded readable text, extract it
+  let extractedTextCandidate = '';
+  let cleanBase64 = '';
+  if (fileBase64) {
+    cleanBase64 = fileBase64.includes(';base64,')
+      ? fileBase64.split(';base64,')[1]
+      : fileBase64;
+    extractedTextCandidate = tryExtractTextFromBase64(cleanBase64);
+  }
+
+  const effectiveText = resumeText && resumeText.trim().length > 0
+    ? resumeText
+    : extractedTextCandidate;
+
   try {
     let contents: any;
 
-    if (fileBase64 && mimeType) {
-      const base64Data = fileBase64.includes(';base64,')
-        ? fileBase64.split(';base64,')[1]
-        : fileBase64;
+    if (effectiveText && effectiveText.trim().length > 15) {
+      // Direct formatted/raw text analysis
+      contents = `You are an expert executive tech recruiter and career strategist. Read, parse, and analyze this candidate's resume (which may include formatted text, markdown, bullet points, headers, or plain text):
 
-      // Validate standard MIME types acceptable for inline document processing
-      const supportedMime = mimeType === 'application/pdf' ? 'application/pdf' : 'application/pdf';
+--- CANDIDATE RESUME START ---
+${effectiveText}
+--- CANDIDATE RESUME END ---
 
+Extract a comprehensive, realistic candidate profile and return a valid JSON object matching this exact schema:
+{
+  "name": "Candidate full name",
+  "title": "Current or best-fit professional title",
+  "summary": "2-3 sentence executive career summary highlighting key achievements and remote capability",
+  "seniorityLevel": "Junior" | "Mid-Level" | "Senior" | "Staff/Lead" | "Director/Executive",
+  "yearsOfExperience": number,
+  "primarySkills": ["top 5-8 hard skills / technologies / methodologies"],
+  "secondarySkills": ["supporting technical or domain skills"],
+  "toolsAndTechnologies": ["specific frameworks, languages, tools"],
+  "remoteWorkStrengths": ["3-5 concrete reasons why this candidate thrives in remote & async work"],
+  "salaryExpectationRange": {
+    "min": number,
+    "max": number,
+    "currency": "USD",
+    "period": "yearly"
+  },
+  "targetJobTitles": ["4-6 realistic remote job titles they are qualified to win today"],
+  "recommendedIndustries": ["3-4 industries fitting their track record"],
+  "careerTrajectory": {
+    "progressionPace": "Accelerated" | "Steady & Proven" | "Pivoting / Expanding",
+    "nextLogicalStep": "Diagnosis of their next promotion or scope expansion",
+    "leadershipTrajectory": "e.g. Individual Contributor Specialist, Tech Lead, Engineering Manager",
+    "velocitySummary": "1-2 sentence analysis of their career velocity and promotion readiness based on past roles"
+  },
+  "inferredCulturePreferences": {
+    "preferredCompanyStage": "e.g. High-autonomy scaleup (Series B-D) or distributed remote pioneer",
+    "workstylePace": "e.g. Async-first, high documentation, low meeting overhead",
+    "teamEnvironment": "e.g. Engineering-led, transparent roadmap, high individual ownership",
+    "keyMotivators": ["Autonomy & async trust", "Technical depth & craft", "High impact & velocity"]
+  },
+  "extractedResumeText": "A clean, well-formatted plain text / markdown version of their full resume content for downstream editing and tailoring"
+}
+Respond with ONLY valid JSON.`;
+    } else if (cleanBase64) {
+      // PDF or inline binary document
+      const fileMime = mimeType && mimeType.includes('pdf') ? 'application/pdf' : 'application/pdf';
       contents = {
         parts: [
           {
             inlineData: {
-              data: base64Data,
-              mimeType: supportedMime,
+              data: cleanBase64,
+              mimeType: fileMime,
             },
           },
           {
-            text: `You are an expert executive tech recruiter and career strategist. Read and thoroughly analyze this uploaded resume file (${fileName || 'document'}).
+            text: `You are an expert executive tech recruiter and career strategist. Read and thoroughly analyze this uploaded formatted resume document (${fileName || 'resume'}).
 Extract a comprehensive, realistic candidate profile and return a valid JSON object matching this schema:
 {
   "name": "Candidate full name",
@@ -210,46 +290,7 @@ Provide ONLY the JSON response. Do not include markdown code block backticks if 
         ],
       };
     } else {
-      contents = `You are an expert executive tech recruiter and career strategist. Read and analyze the following resume:
-
---- RESUME START ---
-${resumeText}
---- RESUME END ---
-
-Extract a comprehensive, realistic candidate profile and return a valid JSON object with:
-{
-  "name": "Candidate full name",
-  "title": "Current or best-fit professional title",
-  "summary": "2-3 sentence executive career summary",
-  "seniorityLevel": "Junior" | "Mid-Level" | "Senior" | "Staff/Lead" | "Director/Executive",
-  "yearsOfExperience": number,
-  "primarySkills": ["top 5-8 hard skills / technologies"],
-  "secondarySkills": ["supporting technical or domain skills"],
-  "toolsAndTechnologies": ["specific tools/languages/frameworks"],
-  "remoteWorkStrengths": ["3-5 reasons why this candidate thrives in remote/async work"],
-  "salaryExpectationRange": {
-    "min": number,
-    "max": number,
-    "currency": "USD",
-    "period": "yearly"
-  },
-  "targetJobTitles": ["4-6 realistic remote job titles they can get right now"],
-  "recommendedIndustries": ["3-4 industries"],
-  "careerTrajectory": {
-    "progressionPace": "Accelerated" | "Steady & Proven" | "Pivoting / Expanding",
-    "nextLogicalStep": "Diagnosis of their next promotion or scope expansion",
-    "leadershipTrajectory": "e.g. Individual Contributor Specialist, Tech Lead, Engineering Manager",
-    "velocitySummary": "1-2 sentence analysis of their career velocity and promotion readiness based on past roles"
-  },
-  "inferredCulturePreferences": {
-    "preferredCompanyStage": "e.g. High-autonomy scaleup (Series B-D) or distributed remote pioneer",
-    "workstylePace": "e.g. Async-first, high documentation, low meeting overhead",
-    "teamEnvironment": "e.g. Engineering-led, transparent roadmap, high individual ownership",
-    "keyMotivators": ["Autonomy & async trust", "Technical depth & craft", "High impact & velocity"]
-  },
-  "extractedResumeText": "Clean markdown representation of their resume"
-}
-Respond with ONLY valid JSON.`;
+      throw new Error('No readable text or file content provided.');
     }
 
     const response = await ai.models.generateContent({
