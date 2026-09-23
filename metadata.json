@@ -1,0 +1,6 @@
+{
+  "name": "RemoteMatch - Resume to Remote Jobs, Tailoring & Cover Letters",
+  "description": "Upload your resume to instantly match with realistic remote job openings, generate targeted cover letters, and tailor your resume to any role.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
