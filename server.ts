@@ -73,7 +73,9 @@ function extractFallbackProfileFromText(text: string, fileName?: string): any {
 
   // Detect title
   let detectedTitle = 'Software Engineer';
-  if (lowerText.includes('product manager') || lowerText.includes('senior product')) {
+  if (lowerText.includes('it support') || lowerText.includes('desktop support') || lowerText.includes('user support') || lowerText.includes('technical support')) {
+    detectedTitle = 'IT & Desktop Support Specialist';
+  } else if (lowerText.includes('product manager') || lowerText.includes('senior product')) {
     detectedTitle = 'Senior Product Manager';
   } else if (lowerText.includes('machine learning') || lowerText.includes('data engineer') || lowerText.includes('data scientist')) {
     detectedTitle = 'Senior Data & Machine Learning Engineer';
@@ -91,53 +93,67 @@ function extractFallbackProfileFromText(text: string, fileName?: string): any {
 
   // Extract skills from text
   const potentialSkills = [
-    'React', 'Next.js', 'TypeScript', 'JavaScript', 'Node.js', 'Python', 'PostgreSQL',
-    'Redis', 'AWS', 'Docker', 'Kubernetes', 'GraphQL', 'REST APIs', 'Tailwind CSS',
-    'Git', 'CI/CD', 'SQL', 'MongoDB', 'Product Strategy', 'Agile', 'Jira', 'Figma',
-    'Customer Success', 'Salesforce', 'HubSpot', 'Communication', 'Documentation'
+    'Active Directory', 'ServiceNow', 'SAP', 'Windows Domain', 'Hardware Troubleshooting',
+    'Computer Imaging', 'Hardware Lifecycle', 'Office 365', 'SharePoint', 'OneDrive',
+    'Python', 'Networking Protocols', 'Asset Tracking', 'SQL', 'JavaScript', 'HTML/CSS',
+    'React', 'Next.js', 'TypeScript', 'Node.js', 'PostgreSQL', 'Redis', 'AWS', 'Docker',
+    'Kubernetes', 'GraphQL', 'REST APIs', 'Tailwind CSS', 'Git', 'CI/CD', 'MongoDB',
+    'Product Strategy', 'Agile', 'Jira', 'Figma', 'Customer Success', 'Salesforce', 'HubSpot'
   ];
   const matchedSkills = potentialSkills.filter((s) => lowerText.includes(s.toLowerCase()));
-  const primarySkills = matchedSkills.slice(0, 7).length > 0 ? matchedSkills.slice(0, 7) : ['Problem Solving', 'Remote Collaboration', 'System Architecture'];
-  const secondarySkills = matchedSkills.slice(7, 14).length > 0 ? matchedSkills.slice(7, 14) : ['Async Workflow', 'Technical Documentation', 'Agile Delivery'];
+  const primarySkills = matchedSkills.slice(0, 7).length > 0 ? matchedSkills.slice(0, 7) : ['Problem Solving', 'Remote Troubleshooting', 'System Configuration'];
+  const secondarySkills = matchedSkills.slice(7, 14).length > 0 ? matchedSkills.slice(7, 14) : ['Async Workflow', 'Technical Documentation', 'Asset Tracking'];
+
+  const isITSupport = detectedTitle.toLowerCase().includes('support') || detectedTitle.toLowerCase().includes('desktop');
 
   return {
     name: extractedName,
     title: detectedTitle,
-    summary: `${extractedName} is an accomplished professional with demonstrated track record in ${detectedTitle.toLowerCase()} disciplines, driving business outcomes, high-autonomy execution, and async collaboration in distributed remote environments.`,
+    summary: `${extractedName} is an accomplished technical professional with demonstrated track record in ${detectedTitle.toLowerCase()} disciplines, driving business outcomes, remote troubleshooting, system reliability, and async collaboration in distributed enterprise environments.`,
     seniorityLevel: seniority,
-    yearsOfExperience: seniority === 'Junior' ? 2 : seniority === 'Mid-Level' ? 4 : seniority === 'Senior' ? 6 : 9,
+    yearsOfExperience: lowerText.includes('8+ years') || lowerText.includes('8 years') ? 8 : (seniority === 'Junior' ? 2 : seniority === 'Mid-Level' ? 4 : seniority === 'Senior' ? 6 : 9),
     primarySkills,
     secondarySkills,
     toolsAndTechnologies: matchedSkills.slice(0, 10),
     remoteWorkStrengths: [
-      'Proven track record in asynchronous documentation and remote team alignment',
-      'High degree of personal ownership and independent sprint velocity',
-      'Clear, articulate written communication across distributed time zones'
+      'Proven track record in remote hardware & software diagnostic workflows',
+      'High degree of personal ownership and asynchronous ticket resolution',
+      'Clear, articulate written communication and user-facing empathy across time zones'
     ],
     salaryExpectationRange: {
-      min: seniority === 'Junior' ? 85000 : seniority === 'Mid-Level' ? 115000 : seniority === 'Senior' ? 140000 : 175000,
-      max: seniority === 'Junior' ? 115000 : seniority === 'Mid-Level' ? 145000 : seniority === 'Senior' ? 180000 : 225000,
+      min: isITSupport ? 70000 : (seniority === 'Junior' ? 85000 : seniority === 'Mid-Level' ? 115000 : seniority === 'Senior' ? 140000 : 175000),
+      max: isITSupport ? 105000 : (seniority === 'Junior' ? 115000 : seniority === 'Mid-Level' ? 145000 : seniority === 'Senior' ? 180000 : 225000),
       currency: 'USD',
       period: 'yearly'
     },
-    targetJobTitles: [
-      detectedTitle,
-      `Remote ${detectedTitle}`,
-      seniority === 'Senior' ? `Staff ${detectedTitle.replace('Senior ', '')}` : `Senior ${detectedTitle}`,
-      `${detectedTitle} (Distributed / Anywhere)`
-    ],
-    recommendedIndustries: ['B2B SaaS', 'Developer Tooling', 'Distributed Cloud Services', 'Remote Work Tech'],
+    targetJobTitles: isITSupport
+      ? [
+          'Remote IT Support Specialist',
+          'Senior Desktop Support Engineer (Remote)',
+          'Remote Technical Support Analyst',
+          'Enterprise Systems & IT Operations Specialist',
+          'Tier II / Tier III Remote IT Administrator'
+        ]
+      : [
+          detectedTitle,
+          `Remote ${detectedTitle}`,
+          seniority === 'Senior' ? `Staff ${detectedTitle.replace('Senior ', '')}` : `Senior ${detectedTitle}`,
+          `${detectedTitle} (Distributed / Anywhere)`
+        ],
+    recommendedIndustries: isITSupport
+      ? ['Enterprise Software & SaaS', 'Healthcare IT', 'Distributed Tech Companies', 'Public Sector & Higher Ed']
+      : ['B2B SaaS', 'Developer Tooling', 'Distributed Cloud Services', 'Remote Work Tech'],
     careerTrajectory: {
-      progressionPace: 'Accelerated',
-      nextLogicalStep: `Advancement into high-impact remote leadership within ${detectedTitle}`,
-      leadershipTrajectory: 'Technical Lead / Senior Individual Contributor',
+      progressionPace: 'Steady & Proven',
+      nextLogicalStep: isITSupport ? 'Remote Systems Administrator or IT Operations Lead' : `Advancement into high-impact remote leadership within ${detectedTitle}`,
+      leadershipTrajectory: isITSupport ? 'Senior Systems Administrator / IT Support Lead' : 'Technical Lead / Senior Individual Contributor',
       velocitySummary: 'Demonstrates consistent velocity, scope expansion, and autonomous delivery across professional roles.'
     },
     inferredCulturePreferences: {
-      preferredCompanyStage: 'High-autonomy growth scaleup (Series B-D) or distributed pioneer',
+      preferredCompanyStage: 'High-autonomy distributed team or mature enterprise organization',
       workstylePace: 'Async-first, high documentation, minimal meeting overhead',
       teamEnvironment: 'Mission-driven, transparent roadmap, high individual ownership',
-      keyMotivators: ['Autonomy & async trust', 'Technical craft & product depth', 'High impact & velocity']
+      keyMotivators: ['Autonomy & async trust', 'Technical craft & problem solving', 'High impact & user enablement']
     },
     extractedResumeText: text
   };

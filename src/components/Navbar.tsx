@@ -31,13 +31,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-lg tracking-tight text-slate-900">RemoteMatch</span>
-              <span className="text-[11px] font-medium tracking-wide text-indigo-700 bg-indigo-50 border border-indigo-100/80 px-2 py-0.5 rounded">
-                AI Career Engine
+              <span className="font-extrabold text-lg tracking-tight text-slate-900">JobHunta</span>
+              <span className="text-[11px] font-bold tracking-wide text-indigo-700 bg-indigo-50 border border-indigo-100/80 px-2 py-0.5 rounded">
+                Remote Job Engine
               </span>
             </div>
             <p className="text-xs text-slate-500 hidden sm:block">
-              Realistic remote openings · Role-specific tailoring · Cover letters
+              Sourcing realistic remote openings · Instant tailoring · Cover letters
             </p>
           </div>
         </div>

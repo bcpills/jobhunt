@@ -2,6 +2,126 @@ import { JobOpening } from '../types';
 
 export const DEFAULT_REMOTE_JOBS: JobOpening[] = [
   {
+    id: 'job-canonical-it-1',
+    title: 'Remote IT Support & Systems Operations Specialist',
+    company: 'Canonical',
+    companyDomain: 'canonical.com',
+    location: 'Remote (US / Americas or Worldwide)',
+    timezoneRequirement: 'US / Global Timezones',
+    workArrangement: '100% Remote · Distributed Pioneer',
+    salary: '$85,000 - $115,000 / yr + Performance Bonus',
+    matchScore: 96,
+    matchTier: 'Strong Match',
+    trajectoryFitScore: 95,
+    cultureFitScore: 97,
+    skillOverlapScore: 96,
+    careerTrajectoryAnalysis:
+      'Direct promotion trajectory from enterprise desktop support to global distributed IT infrastructure & systems operations at a premier open-source company.',
+    cultureFitDetails: {
+      companyStage: 'Global Distributed Pioneer (1,000+ staff across 70+ countries)',
+      operatingStyle: '100% Remote since inception, written documentation first, high autonomy and asynchronous delivery',
+      alignmentNotes:
+        'Perfect match for candidates experienced in independent troubleshooting, cross-location user support, and structured ticketing workflows.',
+    },
+    skillOverlapDetails: {
+      matchedCore: ['Hardware & Software Troubleshooting', 'Active Directory', 'ServiceNow / ITSM', 'Computer Imaging & Deployment', 'Asset Management'],
+      transferableSkills: ['Python Scripting Fundamentals', 'Network Protocols', 'Warranty Coordination & Hardware Lifecycle'],
+      gaps: ['Ubuntu Linux desktop automation tooling (Landscape)'],
+    },
+    matchReasoning: [
+      '8+ years supporting large enterprise environments directly aligns with Canonical’s global remote workforce requirements.',
+      'Extensive Active Directory, computer imaging, and software deployment track record.',
+      'Strong ITSM ticketing (ServiceNow) and asset lifecycle management (SAP/EBS) skills.',
+      'Python programming foundation allows rapid transition into IT operations automation.'
+    ],
+    skillGaps: [
+      'Review Canonical Landscape and Linux remote management utilities before technical screen.'
+    ],
+    description: `Canonical (publishers of Ubuntu) is hiring a Remote IT Support & Systems Operations Specialist to support our distributed team worldwide. You will diagnose and resolve complex hardware and software issues, manage user access via Active Directory and cloud identity, oversee computer imaging and hardware lifecycles, and automate tier-2 IT workflows.`,
+    keyResponsibilities: [
+      'Provide comprehensive tier-2 remote technical support for distributed employees across multiple continents.',
+      'Administer user provisioning, group policies, and domain equipment within Active Directory and cloud directories.',
+      'Coordinate hardware lifecycle, equipment imaging, warranty replacements, and asset tracking.',
+      'Manage support requests and SLAs using ServiceNow, maintaining high user satisfaction scores.',
+      'Leverage Python and command-line scripts to automate repetitive onboarding and configuration tasks.'
+    ],
+    requirements: [
+      '4+ years of hands-on technical/desktop support in an enterprise or remote environment.',
+      'Demonstrated expertise with Active Directory, Windows OS, computer imaging, and peripheral troubleshooting.',
+      'Experience with enterprise ticketing systems (ServiceNow, Jira Service Desk, or similar).',
+      'Strong asynchronous written communication, patient customer service, and independent problem-solving mindset.'
+    ],
+    benefits: [
+      '100% Remote work from anywhere',
+      'Twice-yearly all-expenses-paid global company sprints',
+      'Home office stipend and high-spec workstation allowance',
+      'Comprehensive healthcare, 401(k), and generous paid leave'
+    ],
+    postedDate: 'Just now',
+    applicantCompetition: 'Low',
+    applyUrl: 'https://canonical.com/careers',
+    source: 'Canonical Distributed Careers'
+  },
+  {
+    id: 'job-zapier-it-2',
+    title: 'Senior IT Support Specialist (100% Remote)',
+    company: 'Zapier',
+    companyDomain: 'zapier.com',
+    location: 'Remote (US / Americas)',
+    timezoneRequirement: 'US Timezones',
+    workArrangement: '100% Remote · Pioneer Culture',
+    salary: '$92,000 - $125,000 / yr + Equity',
+    matchScore: 93,
+    matchTier: 'Strong Match',
+    trajectoryFitScore: 92,
+    cultureFitScore: 95,
+    skillOverlapScore: 92,
+    careerTrajectoryAnalysis:
+      'Expands enterprise desktop support into modern cloud-first SaaS IT operations and workflow automation.',
+    cultureFitDetails: {
+      companyStage: 'Profitable Growth Scaleup (1,200+ distributed employees)',
+      operatingStyle: '100% Distributed since 2011, documentation-centric, high psychological safety and trust',
+      alignmentNotes:
+        'Great synergy with candidates who excel in user enablement, clear documentation, and autonomous problem resolution.',
+    },
+    skillOverlapDetails: {
+      matchedCore: ['Desktop Support', 'Hardware/Software Troubleshooting', 'Asset Tracking', 'User Account Provisioning'],
+      transferableSkills: ['ServiceNow/ITSM', 'Python Automation', 'SharePoint / OneDrive Collaboration'],
+      gaps: ['Okta SSO & MDM (Jamf/Intune) advanced policy writing'],
+    },
+    matchReasoning: [
+      'Strong track record supporting large user bases across diverse technology hardware and operating systems.',
+      'Demonstrated experience handling asset logistics, warranty repairs, and equipment onboarding.',
+      'Clear, empathetic communication style that fits Zapier’s remote culture.'
+    ],
+    skillGaps: [
+      'Brush up on cloud identity providers (Okta/Google Workspace admin) and MDM basics.'
+    ],
+    description: `Zapier is looking for a Senior Remote IT Support Specialist to deliver seamless technical assistance to our 100% distributed workforce. You will troubleshoot hardware and software challenges, manage computer deployments and replacements, streamline SaaS access, and build IT help docs that empower our team.`,
+    keyResponsibilities: [
+      'Deliver friendly, high-velocity IT support via Slack and async tickets.',
+      'Configure and deploy laptops, mobile devices, and peripherals to team members across the US and Americas.',
+      'Maintain accurate IT asset inventories and oversee warranty repairs with vendors.',
+      'Document common troubleshooting solutions and self-service runbooks.'
+    ],
+    requirements: [
+      '4+ years of IT user support experience in an enterprise, high-growth, or distributed environment.',
+      'Deep troubleshooting capability with Windows and macOS environments.',
+      'Experience with asset management, warranty processing, and ticketing systems.',
+      'Outstanding written empathy and ability to guide non-technical users.'
+    ],
+    benefits: [
+      'Work from anywhere in the US / Americas',
+      '2 annual company-wide retreats',
+      '4% 401(k) company match',
+      'Generous tech & health stipends'
+    ],
+    postedDate: '1 day ago',
+    applicantCompetition: 'Moderate',
+    applyUrl: 'https://zapier.com/jobs',
+    source: 'Zapier Remote Careers'
+  },
+  {
     id: 'job-gitlab-1',
     title: 'Senior Frontend Engineer, Core Collaboration',
     company: 'GitLab',

@@ -9,6 +9,60 @@ export interface SampleResume {
 
 export const SAMPLE_RESUMES: SampleResume[] = [
   {
+    id: 'joseph-thomas-it-support',
+    name: 'Joseph Thomas',
+    targetRole: 'IT Support & Systems Specialist',
+    yearsExp: 8,
+    seniority: 'Senior',
+    text: `JOSEPH THOMAS
+919-656-1120 • Thomasjoe55@gmail.com
+IT SUPPORT | DESKTOP SUPPORT | TECHNICAL SUPPORT
+
+PROFESSIONAL SUMMARY
+IT Support professional with 8+ years of experience supporting users and technology in a large enterprise environment. Experienced in hardware and software troubleshooting, computer deployment, Active Directory, asset management, warranty coordination, ServiceNow, SAP, EBS, and Microsoft tools. Strong technical foundation in programming, networking, and cloud computing, supported by Wake Technical Community College certificates in Python Programming and Computing Fundamentals. Known for strong customer communication, problem-solving, and the ability to work independently or as part of a team.
+
+CORE TECHNICAL SKILLS
+IT Support: Hardware & Software Troubleshooting • Desktop Support • User Support • Hardware Repair
+Systems: Active Directory • Windows Domain Environments • Computer Imaging • Software Configuration
+ITSM / Assets: ServiceNow • SAP • EBS • Asset Tracking • Hardware Lifecycle Management • Warranty Coordination
+Microsoft: Microsoft Office • SharePoint • OneDrive
+Networking: Networking Fundamentals • Networking Protocols • Communications
+Programming: Python • HTML • CSS • PHP • SQL • Java • JavaScript
+Cloud: Cloud Computing Fundamentals
+
+PROFESSIONAL EXPERIENCE
+NORTH CAROLINA DEPARTMENT OF TRANSPORTATION / DEPARTMENT OF INFORMATION TECHNOLOGY
+User Support Analyst | May 2018 – Present
+• Provide technical support for computer hardware, mobile devices, software, peripherals, and components.
+• Troubleshoot and repair broken hardware and coordinate warranty repairs with manufacturers and distributors.
+• Prepare, configure, image, and deploy computers, including installation of required software for customers.
+• Join and configure equipment within the state domain using Active Directory.
+• Manage and track IT assets using SAP and EBS systems.
+• Coordinate disposal of outdated, damaged, and obsolete technology assets.
+• Use ServiceNow for support and call tracking.
+• Support communication and collaboration across locations using Microsoft Office, SharePoint, and OneDrive.
+• Apply networking fundamentals, protocols, and communications knowledge when supporting technology and users.
+• Work independently and collaboratively to troubleshoot technical issues and resolve customer needs.
+
+PTA PIZZA — Wake Forest, NC
+Delivery Driver | August 2016 – May 2018
+• Provided reliable customer service while managing deliveries and interacting directly with customers.
+• Managed responsibilities independently while maintaining timely service.
+
+UNITED ZONE — Wake Forest, NC
+Sales / Customer Service | September 2014 – November 2017
+• Assisted customers and provided service in a retail sales environment.
+• Communicated with customers to understand needs and provide appropriate assistance.
+
+EDUCATION & CERTIFICATIONS
+WAKE TECHNICAL COMMUNITY COLLEGE — Raleigh, NC
+Certificate: Python Programming • Certificate: Computing Fundamentals
+Programming and Development coursework including Python, HTML, CSS, PHP, SQL, Java, and JavaScript.
+
+MICHIGAN VIRTUAL CHARTER ACADEMY — Grand Rapids, MI
+High School Diploma | June 2014`,
+  },
+  {
     id: 'fullstack-engineer',
     name: 'Alex Rivera',
     targetRole: 'Senior Full-Stack Engineer',

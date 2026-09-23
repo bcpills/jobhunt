@@ -1,6 +1,6 @@
 {
-  "name": "RemoteMatch - Resume to Remote Jobs, Tailoring & Cover Letters",
-  "description": "Upload your resume to instantly match with realistic remote job openings, generate targeted cover letters, and tailor your resume to any role.",
+  "name": "jobhunta",
+  "description": "JobHunta analyzes your resume to source targeted remote IT & tech jobs, customize your resume, and generate tailored cover letters.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
