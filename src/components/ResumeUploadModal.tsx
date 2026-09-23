@@ -56,29 +56,38 @@ export const ResumeUploadModal: React.FC<ResumeUploadModalProps> = ({
     if (!selectedFile) return;
     setErrorMessage(null);
 
-    const reader = new FileReader();
     const isText = selectedFile.name.endsWith('.txt') || selectedFile.name.endsWith('.md');
 
     if (isText) {
+      const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target?.result as string;
         try {
           await onAnalyzeText(text);
           onClose();
         } catch (err: any) {
-          setErrorMessage(err.message || 'Analysis failed. Please try again.');
+          setErrorMessage(err.message || 'Analysis failed. Please check your document or paste text directly.');
         }
+      };
+      reader.onerror = () => {
+        setErrorMessage('Unable to read selected text file. Please try pasting its content.');
       };
       reader.readAsText(selectedFile);
     } else {
+      const reader = new FileReader();
       reader.onload = async (e) => {
         const base64 = e.target?.result as string;
         try {
           await onAnalyzeFile(base64, selectedFile.type || 'application/pdf', selectedFile.name);
           onClose();
         } catch (err: any) {
-          setErrorMessage(err.message || 'Analysis failed. Please try again.');
+          setErrorMessage(
+            err.message || 'Analysis failed. Tip: You can also copy and paste your resume text under the "Paste Resume Text" tab.'
+          );
         }
+      };
+      reader.onerror = () => {
+        setErrorMessage('Error reading file. Please try pasting the resume text directly.');
       };
       reader.readAsDataURL(selectedFile);
     }
