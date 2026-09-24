@@ -492,6 +492,7 @@ export default function App() {
         tailoredResume={tailoredResume}
         job={selectedJob}
         isLoading={isTailoring}
+        onRetry={() => selectedJob && handleTailorResume(selectedJob)}
       />
 
       <CoverLetterModal

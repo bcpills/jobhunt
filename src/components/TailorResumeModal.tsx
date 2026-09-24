@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TailoredResume, JobOpening } from '../types';
-import { X, Sparkles, Copy, Check, Download, Printer, ArrowRight, CheckCircle2, TrendingUp, FileText } from 'lucide-react';
+import { X, Sparkles, Copy, Check, Download, Printer, ArrowRight, CheckCircle2, TrendingUp, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface TailorResumeModalProps {
   isOpen: boolean;
@@ -8,6 +8,7 @@ interface TailorResumeModalProps {
   tailoredResume: TailoredResume | null;
   job: JobOpening | null;
   isLoading: boolean;
+  onRetry?: () => void;
 }
 
 export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
@@ -16,6 +17,7 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
   tailoredResume,
   job,
   isLoading,
+  onRetry,
 }) => {
   const [activeTab, setActiveTab] = useState<'diff' | 'full' | 'print'>('diff');
   const [copied, setCopied] = useState(false);
@@ -23,7 +25,7 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
 
   // Update markdown buffer when tailoredResume changes
   React.useEffect(() => {
-    if (tailoredResume) {
+    if (tailoredResume?.fullMarkdown) {
       setEditableMarkdown(tailoredResume.fullMarkdown);
     }
   }, [tailoredResume]);
@@ -93,6 +95,32 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                 Aligning work experience bullets with the Google XYZ formula, injecting target ATS keywords, and optimizing executive summary.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Empty / Error Fallback */}
+        {!isLoading && !tailoredResume && (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div className="space-y-1 max-w-sm">
+              <h3 className="text-sm font-bold text-slate-800">
+                Could Not Generate Tailored Resume
+              </h3>
+              <p className="text-xs text-slate-500">
+                We encountered an issue communicating with the AI tailoring engine. You can retry with a single click.
+              </p>
+            </div>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Retry Resume Tailoring</span>
+              </button>
+            )}
           </div>
         )}
 

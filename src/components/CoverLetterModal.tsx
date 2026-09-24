@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CoverLetter, JobOpening, CandidateProfile } from '../types';
-import { X, FileText, Copy, Check, Download, RefreshCw, Sparkles, Printer, Sliders } from 'lucide-react';
+import { X, FileText, Copy, Check, Download, RefreshCw, Sparkles, Printer, Sliders, AlertCircle } from 'lucide-react';
 
 interface CoverLetterModalProps {
   isOpen: boolean;
@@ -163,6 +163,30 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
                 Formulating strong opening hook for {job.company}, mapping your proven wins to their exact requirements, and emphasizing remote async execution.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Empty / Error Fallback */}
+        {!isLoading && !coverLetter && (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div className="space-y-1 max-w-sm">
+              <h3 className="text-sm font-bold text-slate-800">
+                Could Not Generate Cover Letter
+              </h3>
+              <p className="text-xs text-slate-500">
+                The cover letter generation encountered an issue. Click below to regenerate with customized tone settings.
+              </p>
+            </div>
+            <button
+              onClick={() => onRegenerate({ tone, length, customNotes })}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Generate Cover Letter Now</span>
+            </button>
           </div>
         )}
 
