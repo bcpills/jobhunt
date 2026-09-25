@@ -21,6 +21,7 @@ interface JobDetailModalProps {
   onClose: () => void;
   job: JobOpening | null;
   candidateProfile?: CandidateProfile | null;
+  userState?: string;
   onTailorResume: (job: JobOpening) => void;
   onGenerateCoverLetter: (job: JobOpening) => void;
   onResearchCompany: (job: JobOpening) => void;
@@ -31,6 +32,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   onClose,
   job,
   candidateProfile,
+  userState = 'NC',
   onTailorResume,
   onGenerateCoverLetter,
   onResearchCompany,
@@ -40,6 +42,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const trajectoryScore = job.trajectoryFitScore ?? Math.min(96, Math.max(80, job.matchScore + 1));
   const cultureScore = job.cultureFitScore ?? Math.min(97, Math.max(82, job.matchScore + 2));
   const skillScore = job.skillOverlapScore ?? Math.min(95, Math.max(78, job.matchScore - 1));
+
+  const isNationwide = job.eligibleStates?.includes('All US') || job.location.includes('All 50 States');
+  const isEligibleInState = isNationwide || (userState && job.eligibleStates?.includes(userState));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
@@ -74,6 +79,23 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               <span className="font-semibold text-slate-800">{job.salary}</span>
               <span className="text-slate-300">·</span>
               <span className="text-indigo-700 font-medium">{job.workArrangement}</span>
+            </div>
+
+            {/* State Eligibility Note */}
+            <div className="pt-1.5 flex items-center gap-2">
+              {isNationwide ? (
+                <span className="text-xs text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded font-medium">
+                  🌐 Nationwide Remote: Open to all 50 US States
+                </span>
+              ) : isEligibleInState ? (
+                <span className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded font-medium">
+                  🟢 Eligible for Remote Work in {userState} · {job.stateEligibilityNote || 'Open to your state'}
+                </span>
+              ) : (
+                <span className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded font-medium">
+                  📍 State-Specific Remote: {job.stateEligibilityNote || (job.eligibleStates ? `Eligible in ${job.eligibleStates.join(', ')}` : 'Restricted states')}
+                </span>
+              )}
             </div>
           </div>
 

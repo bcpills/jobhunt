@@ -11,41 +11,60 @@ import {
   TrendingUp,
   Award,
   Sparkles,
-  RotateCcw
+  RotateCcw,
+  MapPin,
+  Edit2
 } from 'lucide-react';
+import { US_STATE_NAMES } from '../utils/clientResumeParser';
 
 interface CandidateProfileBarProps {
   profile: CandidateProfile;
   onViewResume: () => void;
   onStartOver?: () => void;
+  onUpdateState?: (newState: string) => void;
+  onUpdateSalary?: (min: number, max: number) => void;
 }
 
 export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
   profile,
   onViewResume,
   onStartOver,
+  onUpdateState,
+  onUpdateSalary,
 }) => {
   const [expanded, setExpanded] = useState(false);
+  const [isEditingPreferences, setIsEditingPreferences] = useState(false);
+  const [selectedState, setSelectedState] = useState(profile.userState || 'NC');
+  const [targetMin, setTargetMin] = useState(profile.targetSalaryMin || 48000);
+  const [targetMax, setTargetMax] = useState(profile.targetSalaryMax || 75000);
 
-  const formattedMin = profile.salaryExpectationRange?.min
-    ? `$${(profile.salaryExpectationRange.min / 1000).toFixed(0)}k`
-    : '$120k';
-  const formattedMax = profile.salaryExpectationRange?.max
-    ? `$${(profile.salaryExpectationRange.max / 1000).toFixed(0)}k`
-    : '$160k';
+  const minVal = profile.targetSalaryMin || profile.salaryExpectationRange?.min || 48000;
+  const maxVal = profile.targetSalaryMax || profile.salaryExpectationRange?.max || 75000;
+  const formattedMin = `$${(minVal / 1000).toFixed(0)}k`;
+  const formattedMax = `$${(maxVal / 1000).toFixed(0)}k`;
+
+  const stateDisplay = profile.userState && US_STATE_NAMES[profile.userState]
+    ? `${US_STATE_NAMES[profile.userState]} (${profile.userState})`
+    : profile.userState || 'All US (Nationwide)';
 
   const trajectory = profile.careerTrajectory || {
-    progressionPace: 'Accelerated & Proven',
-    nextLogicalStep: 'Senior to Staff IC or Technical Lead scope',
-    leadershipTrajectory: 'Technical Lead & Senior IC',
-    velocitySummary: 'Demonstrated track record scaling high-impact distributed systems and async RFC engineering culture.'
+    progressionPace: 'Steady & Proven',
+    nextLogicalStep: 'Senior Systems Support / IT Operations Lead',
+    leadershipTrajectory: 'Senior Specialist / Technical IC',
+    velocitySummary: 'Demonstrates consistent velocity, scope expansion, and autonomous delivery across professional roles.'
   };
 
   const culture = profile.inferredCulturePreferences || {
-    preferredCompanyStage: 'High-autonomy growth scaleup or distributed remote pioneer',
-    workstylePace: 'Async-first, high documentation, low meeting overhead',
-    teamEnvironment: 'Engineering-led, transparent roadmap, high individual ownership',
-    keyMotivators: ['Async autonomy', 'Technical craft', 'High impact & velocity']
+    preferredCompanyStage: 'High-autonomy distributed team or mature enterprise organization',
+    workstylePace: 'Async-first, high documentation, minimal meeting overhead',
+    teamEnvironment: 'Mission-driven, transparent roadmap, high individual ownership',
+    keyMotivators: ['Autonomy & async trust', 'Problem solving', 'High impact & user enablement']
+  };
+
+  const handleSavePreferences = () => {
+    if (onUpdateState) onUpdateState(selectedState);
+    if (onUpdateSalary) onUpdateSalary(targetMin, targetMax);
+    setIsEditingPreferences(false);
   };
 
   return (
@@ -72,26 +91,29 @@ export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
               {profile.summary}
             </p>
 
-            {/* Quick Metadata */}
+            {/* Quick Metadata: Location, Realistic Salary, Arc */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 pt-1">
-              <div className="flex items-center gap-1 text-slate-700 font-medium">
+              <div className="flex items-center gap-1 text-slate-800 font-medium">
+                <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Home State: <strong className="text-indigo-700">{stateDisplay}</strong></span>
+              </div>
+
+              <span className="text-slate-300" aria-hidden="true">·</span>
+
+              <div className="flex items-center gap-1 text-slate-800 font-medium">
                 <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Target Comp: {formattedMin} – {formattedMax} / yr</span>
+                <span>Target Comp: <strong className="text-emerald-700">{formattedMin} – {formattedMax} / yr</strong> (Realistic)</span>
               </div>
 
               <span className="text-slate-300" aria-hidden="true">·</span>
 
-              <div className="flex items-center gap-1">
-                <Globe className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Remote Ready: High Async Autonomy</span>
-              </div>
-
-              <span className="text-slate-300" aria-hidden="true">·</span>
-
-              <div className="flex items-center gap-1 text-slate-700">
-                <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Arc: {trajectory.nextLogicalStep}</span>
-              </div>
+              <button
+                onClick={() => setIsEditingPreferences(!isEditingPreferences)}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 underline decoration-indigo-200"
+              >
+                <Edit2 className="w-3 h-3" />
+                <span>Adjust State / Salary</span>
+              </button>
             </div>
           </div>
 
@@ -121,11 +143,71 @@ export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100/70 border border-indigo-200/70 rounded-lg transition-colors"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span>{expanded ? 'Hide Algorithm Insights' : 'Matching Trajectory & Culture'}</span>
+              <span>{expanded ? 'Hide Insights' : 'Matching Insights'}</span>
               {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>
+
+        {/* Quick Edit Location & Salary Form */}
+        {isEditingPreferences && (
+          <div className="mt-4 p-4 bg-indigo-50/60 rounded-xl border border-indigo-100 animate-in fade-in duration-150">
+            <h4 className="text-xs font-bold text-slate-900 mb-2">Adjust Location & Realistic Comp Preferences:</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Home State:
+                </label>
+                <select
+                  value={selectedState}
+                  onChange={(e) => setSelectedState(e.target.value)}
+                  className="w-full text-xs p-1.5 bg-white border border-slate-200 rounded-lg"
+                >
+                  <option value="All US">Nationwide (All 50 US States)</option>
+                  {Object.entries(US_STATE_NAMES).map(([code, name]) => (
+                    <option key={code} value={code}>
+                      {name} ({code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Target Min ($/yr):
+                </label>
+                <input
+                  type="number"
+                  step="5000"
+                  value={targetMin}
+                  onChange={(e) => setTargetMin(Number(e.target.value))}
+                  className="w-full text-xs p-1.5 bg-white border border-slate-200 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Target Max / Ceiling ($/yr):
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="5000"
+                    value={targetMax}
+                    onChange={(e) => setTargetMax(Number(e.target.value))}
+                    className="w-full text-xs p-1.5 bg-white border border-slate-200 rounded-lg"
+                  />
+                  <button
+                    onClick={handleSavePreferences}
+                    className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shrink-0 shadow-2xs"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Expandable Advanced Algorithm Insights */}
         {expanded && (
@@ -196,9 +278,9 @@ export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
               </h3>
               <ul className="space-y-1 text-xs text-slate-600">
                 {(profile.remoteWorkStrengths || [
-                  'Proven asynchronous written documentation and RFC workflows',
+                  'Proven asynchronous written documentation and troubleshooting workflows',
                   'High autonomy in distributed, cross-timezone environments',
-                  'Proactive communication and deliverable ownership',
+                  'Proactive communication and user support ownership',
                 ]).slice(0, 3).map((strength, idx) => (
                   <li key={idx} className="flex items-start gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />

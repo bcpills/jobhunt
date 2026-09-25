@@ -77,6 +77,10 @@ export async function analyzeResume(params: {
   fileBase64?: string;
   mimeType?: string;
   fileName?: string;
+  userState?: string;
+  userLocation?: string;
+  targetSalaryMin?: number;
+  targetSalaryMax?: number;
 }): Promise<CandidateProfile> {
   const effectiveText = (params.resumeText || '').trim();
 
@@ -85,6 +89,10 @@ export async function analyzeResume(params: {
     const payload: any = {
       fileName: params.fileName,
       mimeType: params.mimeType,
+      userState: params.userState,
+      userLocation: params.userLocation,
+      targetSalaryMin: params.targetSalaryMin,
+      targetSalaryMax: params.targetSalaryMax,
     };
     if (effectiveText) {
       payload.resumeText = effectiveText;
@@ -103,6 +111,9 @@ export async function analyzeResume(params: {
     if (response.ok) {
       const data = await safeParseJsonResponse(response);
       if (data && data.profile) {
+        if (params.userState) data.profile.userState = params.userState;
+        if (params.targetSalaryMin) data.profile.targetSalaryMin = params.targetSalaryMin;
+        if (params.targetSalaryMax) data.profile.targetSalaryMax = params.targetSalaryMax;
         return data.profile;
       }
     }
@@ -112,7 +123,10 @@ export async function analyzeResume(params: {
 
   // Ironclad Client-side parser fallback: guarantees Netlify and mobile uploads NEVER fail!
   const rawText = effectiveText || (params.fileName ? `Resume: ${params.fileName}` : 'Candidate Resume');
-  return parseCandidateProfileFromText(rawText, params.fileName);
+  const salaryOverride = params.targetSalaryMin
+    ? { min: params.targetSalaryMin, max: params.targetSalaryMax || params.targetSalaryMin + 25000 }
+    : undefined;
+  return parseCandidateProfileFromText(rawText, params.fileName, params.userState, salaryOverride);
 }
 
 export async function findRemoteJobs(params: {
@@ -121,6 +135,11 @@ export async function findRemoteJobs(params: {
     seniority?: string;
     region?: string;
     targetRole?: string;
+    userState?: string;
+    minSalary?: number;
+    maxSalary?: number;
+    salaryTier?: string;
+    onlyMyState?: boolean;
   };
   customQuery?: string;
 }): Promise<JobOpening[]> {
@@ -171,9 +190,12 @@ export async function tailorResumeToRole(params: {
 }
 
 export async function generateCoverLetter(params: {
-  originalResumeText: string;
   candidateProfile: CandidateProfile;
   job: JobOpening;
+  originalResumeText?: string;
+  tone?: string;
+  customParagraph?: string;
+  companyResearch?: CompanyResearchData | null;
   preferences?: {
     tone?: string;
     length?: string;
@@ -197,7 +219,7 @@ export async function generateCoverLetter(params: {
     console.warn('Backend cover letter unreachable, generating cover letter client-side:', networkErr);
   }
 
-  return generateClientSideCoverLetter(params.candidateProfile, params.job, params.preferences);
+  return generateClientSideCoverLetter(params.candidateProfile, params.job, params.companyResearch);
 }
 
 export async function fetchCompanyResearch(params: {

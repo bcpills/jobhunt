@@ -16,6 +16,7 @@ import {
 
 interface JobCardProps {
   job: JobOpening;
+  userState?: string;
   onTailorResume: (job: JobOpening) => void;
   onGenerateCoverLetter: (job: JobOpening) => void;
   onViewDetails: (job: JobOpening) => void;
@@ -24,6 +25,7 @@ interface JobCardProps {
 
 export const JobCard: React.FC<JobCardProps> = ({
   job,
+  userState = 'NC',
   onTailorResume,
   onGenerateCoverLetter,
   onViewDetails,
@@ -38,6 +40,9 @@ export const JobCard: React.FC<JobCardProps> = ({
   const trajectoryScore = job.trajectoryFitScore ?? Math.min(96, Math.max(80, job.matchScore + 1));
   const cultureScore = job.cultureFitScore ?? Math.min(97, Math.max(82, job.matchScore + 2));
   const skillScore = job.skillOverlapScore ?? Math.min(95, Math.max(78, job.matchScore - 1));
+
+  const isNationwide = job.eligibleStates?.includes('All US') || job.location.includes('All 50 States');
+  const isEligibleInState = isNationwide || (userState && job.eligibleStates?.includes(userState));
 
   return (
     <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group overflow-hidden">
@@ -64,11 +69,28 @@ export const JobCard: React.FC<JobCardProps> = ({
                 </button>
               </div>
 
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 mt-0.5">
                 <MapPin className="w-3 h-3 text-slate-400" />
                 <span>{job.location}</span>
                 <span aria-hidden="true">·</span>
                 <span className="text-indigo-700 font-medium">{job.workArrangement}</span>
+              </div>
+
+              {/* State Eligibility Pill */}
+              <div className="mt-1 flex items-center gap-1.5">
+                {isNationwide ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded">
+                    🌐 Nationwide (All 50 States)
+                  </span>
+                ) : isEligibleInState ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                    🟢 Eligible in your state ({userState})
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                    📍 State-Specific Remote: {job.eligibleStates ? job.eligibleStates.slice(0, 4).join(', ') : 'Restricted'}
+                  </span>
+                )}
               </div>
             </div>
           </div>

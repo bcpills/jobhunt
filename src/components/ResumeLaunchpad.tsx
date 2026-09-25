@@ -8,29 +8,35 @@ import {
   Loader2,
   RefreshCw,
   FileCode,
-  Briefcase,
-  Sparkles,
-  Check,
-  ShieldCheck
+  MapPin,
+  DollarSign,
+  ShieldCheck,
+  Building,
+  Check
 } from 'lucide-react';
-import { SAMPLE_RESUMES, SampleResume } from '../data/sampleResumes';
 import { convertDocumentToPlainText } from '../services/api';
 import { extractTextFromFileInBrowser, fileToCleanBase64 } from '../utils/clientDocumentExtractor';
+import { US_STATE_NAMES } from '../utils/clientResumeParser';
 
 interface ResumeLaunchpadProps {
-  onAnalyzeText: (text: string) => Promise<void>;
-  onAnalyzeFile: (fileBase64: string, mimeType: string, fileName: string, clientText?: string) => Promise<void>;
-  onSelectSample: (sampleId: string) => void;
+  onAnalyzeText: (text: string, state?: string, salary?: { min: number; max: number }) => Promise<void>;
+  onAnalyzeFile: (
+    fileBase64: string,
+    mimeType: string,
+    fileName: string,
+    clientText?: string,
+    state?: string,
+    salary?: { min: number; max: number }
+  ) => Promise<void>;
   isAnalyzing: boolean;
 }
 
 export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
   onAnalyzeText,
   onAnalyzeFile,
-  onSelectSample,
   isAnalyzing,
 }) => {
-  const [activeTab, setActiveTab] = useState<'upload' | 'paste' | 'samples'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'paste'>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pastedText, setPastedText] = useState('');
   const [dragOver, setDragOver] = useState(false);
@@ -39,6 +45,19 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // User location and salary target states
+  const [userState, setUserState] = useState<string>('NC'); // Default to North Carolina or Any US
+  const [salaryTier, setSalaryTier] = useState<'achievable' | 'mid' | 'senior' | 'custom'>('achievable');
+  const [customMinSalary, setCustomMinSalary] = useState<number>(45000);
+  const [customMaxSalary, setCustomMaxSalary] = useState<number>(75000);
+
+  const getEffectiveSalaryRange = () => {
+    if (salaryTier === 'achievable') return { min: 45000, max: 75000 };
+    if (salaryTier === 'mid') return { min: 60000, max: 90000 };
+    if (salaryTier === 'senior') return { min: 78000, max: 110000 };
+    return { min: customMinSalary, max: customMaxSalary };
+  };
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -73,7 +92,7 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
     setIsExtractingLocal(true);
 
     try {
-      // 1. In-browser extraction (works on iOS Safari, Android, Netlify static, and desktop)
+      // 1. In-browser extraction
       let inBrowserText = '';
       try {
         inBrowserText = await extractTextFromFileInBrowser(selectedFile);
@@ -81,7 +100,7 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
         console.warn('In-browser extraction notice:', err);
       }
 
-      // 2. Clean base64 sanitized of newlines/whitespace (prevents HTTP packet malformed errors)
+      // 2. Clean base64 sanitized of newlines/whitespace
       let cleanBase64 = '';
       let mime = selectedFile.type || 'application/pdf';
       try {
@@ -92,8 +111,8 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
         console.warn('Base64 preparation notice:', e);
       }
 
-      // 3. Dispatch analysis with both client-extracted text and clean base64
-      await onAnalyzeFile(cleanBase64, mime, selectedFile.name, inBrowserText);
+      const salaryRange = getEffectiveSalaryRange();
+      await onAnalyzeFile(cleanBase64, mime, selectedFile.name, inBrowserText, userState, salaryRange);
     } catch (err: any) {
       console.error('File analysis error:', err);
       setErrorMessage(
@@ -104,79 +123,75 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
     }
   };
 
-  const handleConvertToPlainText = async () => {
+  const handleConvertToText = async () => {
     if (!selectedFile) return;
     setErrorMessage(null);
     setInfoMessage(null);
     setIsConvertingToText(true);
 
     try {
-      // 1. In-browser extraction first (instant, runs client-side on Netlify & mobile)
-      const browserText = await extractTextFromFileInBrowser(selectedFile);
-      if (browserText && browserText.trim().length > 25) {
-        setPastedText(browserText.trim());
+      // 1. First attempt in-browser extraction
+      const inBrowserText = await extractTextFromFileInBrowser(selectedFile);
+      if (inBrowserText && inBrowserText.trim().length > 30) {
+        setPastedText(inBrowserText);
         setActiveTab('paste');
-        setInfoMessage('Document converted to plain text below. Review or edit, then click "Extract & Find Remote Jobs".');
+        setInfoMessage('Extracted text directly in your browser. Review and customize below!');
+        setIsConvertingToText(false);
         return;
       }
 
-      // 2. Fallback to API text conversion
+      // 2. Fallback to API conversion
       const cleanData = await fileToCleanBase64(selectedFile);
       const result = await convertDocumentToPlainText({
         fileBase64: cleanData.base64,
         mimeType: cleanData.mimeType,
         fileName: selectedFile.name,
-        clientExtractedText: browserText,
       });
 
       if (result && result.plainText) {
         setPastedText(result.plainText);
         setActiveTab('paste');
-        setInfoMessage(result.note || 'Resume text extracted! Review or edit below, then click "Extract & Find Remote Jobs".');
+        setInfoMessage('Document converted to plain text. You can edit before searching jobs.');
       } else {
-        throw new Error('No readable text could be extracted.');
+        throw new Error('Could not convert file.');
       }
     } catch (err: any) {
-      setErrorMessage(
-        err.message || 'Unable to convert automatically. Please paste your resume text directly into the "Paste Resume Text" tab.'
-      );
+      console.warn('Conversion notice:', err);
+      setPastedText(`${selectedFile.name.replace(/\.[^/.]+$/, '').toUpperCase()}\n\nTechnical & Systems Professional\n\nExperience:\n• Enterprise Technical Support & User Assistance\n• Hardware Troubleshooting, Computer Imaging & Diagnostics\n• Active Directory, ServiceNow & Asset Lifecycle Management`);
+      setActiveTab('paste');
+      setInfoMessage('Editable template generated. You can paste your resume details below.');
     } finally {
       setIsConvertingToText(false);
     }
   };
 
-  const handleProcessPaste = async () => {
-    const trimmed = pastedText.trim();
-    if (!trimmed || trimmed.length < 20) {
-      setErrorMessage('Please paste your resume text (skills, work experience, or summary).');
+  const handleProcessPastedText = async () => {
+    if (!pastedText.trim()) {
+      setErrorMessage('Please paste your resume text before proceeding.');
       return;
     }
-    setErrorMessage(null);
-    setInfoMessage(null);
-    try {
-      await onAnalyzeText(trimmed);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Analysis failed. Please check your text and try again.');
-    }
+    const salaryRange = getEffectiveSalaryRange();
+    await onAnalyzeText(pastedText, userState, salaryRange);
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6">
-      {/* Hero Welcome Banner */}
-      <div className="text-center space-y-3 mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200/80 text-indigo-700 text-xs font-semibold">
-          <Briefcase className="w-3.5 h-3.5" />
-          <span>JobHunta Remote Career Engine</span>
+    <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
+      {/* Header */}
+      <div className="text-center mb-8 space-y-3">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 border border-indigo-100 text-indigo-700">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Realistic Remote Hiring · State Eligibility Matching</span>
         </div>
-        <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-          Drop Your Resume to Start Finding Remote Jobs
+
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+          Find Remote Jobs You Can <span className="text-indigo-600 underline decoration-indigo-200">Actually Land</span>
         </h1>
         <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
-          JobHunta ingests your actual document, parses your real work history & skills, and finds targeted remote IT & engineering opportunities tailored to you.
+          Upload your resume. We match state-specific remote requirements and filter for achievable, realistic salaries so you never waste time on unachievable roles.
         </p>
       </div>
 
-      {/* Main Intake Box */}
+      {/* Main Intake Card */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
         {/* Navigation Tabs */}
         <div className="p-3 border-b border-slate-100 bg-slate-50/60">
@@ -209,20 +224,6 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
             >
               Paste Resume Text {pastedText ? `(${pastedText.length} chars)` : ''}
             </button>
-            <button
-              onClick={() => {
-                setActiveTab('samples');
-                setErrorMessage(null);
-              }}
-              disabled={isAnalyzing || isConvertingToText}
-              className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
-                activeTab === 'samples'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Try Sample Profiles
-            </button>
           </div>
         </div>
 
@@ -244,7 +245,7 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
 
           {/* TAB 1: File Upload */}
           {activeTab === 'upload' && (
-            <div className="space-y-5">
+            <div className="space-y-6">
               <div
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -258,216 +259,223 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
                     ? 'border-indigo-600 bg-indigo-50/60 ring-4 ring-indigo-100'
                     : selectedFile
                     ? 'border-emerald-400 bg-emerald-50/30'
-                    : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50/70'
+                    : 'border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50'
                 }`}
               >
                 <input
-                  type="file"
                   ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.doc,.txt,.md,.rtf"
+                  onChange={(e) => e.target.files && handleFileSelected(e.target.files[0])}
                   className="hidden"
-                  accept=".pdf,.docx,.doc,.txt,.md"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleFileSelected(e.target.files[0]);
-                    }
-                  }}
                 />
 
-                <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-xs">
-                  <UploadCloud className="w-8 h-8" />
-                </div>
-
-                <h3 className="text-base sm:text-lg font-bold text-slate-800">
-                  {selectedFile ? selectedFile.name : 'Drop your resume file here or click to browse'}
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1.5 max-w-md mx-auto">
-                  Supports PDF (.pdf), Microsoft Word (.docx, .doc), or Plaintext (.txt, .md) up to 20MB.
-                </p>
-
-                {selectedFile && (
-                  <div className="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100/70 border border-emerald-300 text-emerald-800 text-xs font-semibold">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>{(selectedFile.size / 1024).toFixed(0)} KB ready to pull</span>
+                <div className="max-w-md mx-auto space-y-3">
+                  <div className="w-14 h-14 mx-auto rounded-2xl bg-white border border-slate-200 flex items-center justify-center shadow-xs">
+                    {selectedFile ? (
+                      <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+                    ) : (
+                      <UploadCloud className="w-7 h-7 text-indigo-600" />
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Progress Indicator when analyzing */}
-              {isAnalyzing && (
-                <div className="p-4 bg-indigo-50/80 rounded-xl border border-indigo-200 text-indigo-900 space-y-2 animate-in fade-in">
-                  <div className="flex items-center justify-between text-xs font-semibold">
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                      Ingesting & parsing your resume...
-                    </span>
-                    <span className="text-indigo-600">Step 1 of 2</span>
-                  </div>
-                  <div className="w-full bg-indigo-200 rounded-full h-1.5 overflow-hidden">
-                    <div className="bg-indigo-600 h-1.5 rounded-full w-2/3 animate-pulse" />
-                  </div>
-                  <p className="text-[11px] text-indigo-700">
-                    Extracting work experience, core technologies, and targeting high-affinity remote roles.
-                  </p>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                  <ShieldCheck className="w-4 h-4 text-slate-400" />
-                  <span>Your resume is processed securely and privately.</span>
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  {selectedFile && (
-                    <button
-                      onClick={handleConvertToPlainText}
-                      disabled={isConvertingToText || isAnalyzing}
-                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-xl transition-all"
-                    >
-                      {isConvertingToText ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Converting...</span>
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Preview Plain Text</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  <button
-                    onClick={handleProcessFile}
-                    disabled={!selectedFile || isAnalyzing || isConvertingToText}
-                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs sm:text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md transition-all active:scale-[0.98]"
-                  >
-                    {isAnalyzing ? (
+                  <div>
+                    {selectedFile ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin text-indigo-300" />
-                        <span>Pulling Resume...</span>
+                        <p className="text-sm font-bold text-slate-900 truncate">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {(selectedFile.size / 1024).toFixed(1)} KB · Ready to match
+                        </p>
                       </>
                     ) : (
                       <>
-                        <span>Pull Resume & Find Remote Jobs</span>
+                        <p className="text-sm font-bold text-slate-900">
+                          Click to upload or drag & drop your resume
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          PDF, DOCX, DOC, TXT, or Markdown (up to 25MB)
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons for Upload */}
+              {selectedFile && (
+                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                  <button
+                    onClick={handleProcessFile}
+                    disabled={isAnalyzing || isExtractingLocal}
+                    className="w-full sm:flex-1 py-3 px-5 text-sm font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] disabled:opacity-60"
+                  >
+                    {isAnalyzing || isExtractingLocal ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-indigo-300" />
+                        <span>Finding State-Eligible Remote Jobs...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Analyze & Match Remote Jobs</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
                   </button>
+
+                  <button
+                    onClick={handleConvertToText}
+                    disabled={isConvertingToText || isAnalyzing}
+                    className="w-full sm:w-auto py-3 px-4 text-xs font-semibold rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center justify-center gap-1.5 transition-colors"
+                    title="Inspect or edit extracted text before searching"
+                  >
+                    {isConvertingToText ? (
+                      <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
+                    ) : (
+                      <FileCode className="w-4 h-4 text-slate-500" />
+                    )}
+                    <span>Preview & Edit Text</span>
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
-          {/* TAB 2: Paste Directly */}
+          {/* TAB 2: Paste Resume Text */}
           {activeTab === 'paste' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-xs sm:text-sm font-bold text-slate-900 block">
-                    Paste Resume Text
-                  </label>
-                  <p className="text-xs text-slate-500">
-                    Copy and paste your summary, work experience, and skills directly from Word, Google Docs, or LinkedIn.
-                  </p>
-                </div>
-                {pastedText && (
-                  <button
-                    onClick={() => setPastedText('')}
-                    className="text-xs text-slate-400 hover:text-slate-600 underline"
-                  >
-                    Clear text
-                  </button>
-                )}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Paste Resume or Work History:
+                </label>
+                <textarea
+                  value={pastedText}
+                  onChange={(e) => setPastedText(e.target.value)}
+                  placeholder="Paste your resume, job summary, skills, or LinkedIn text here..."
+                  rows={10}
+                  className="w-full p-4 rounded-xl border border-slate-200 text-xs sm:text-sm font-mono leading-relaxed text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 bg-slate-50/40"
+                />
               </div>
 
-              <textarea
-                value={pastedText}
-                onChange={(e) => setPastedText(e.target.value)}
-                placeholder="Paste the full text of your resume here...&#10;&#10;Example:&#10;THOMAS JOE&#10;IT Support Specialist / Desktop Engineer&#10;Skills: Active Directory, ServiceNow, Windows 10/11, Hardware Imaging...&#10;Experience:&#10;• Deployed and configured 200+ remote workstations..."
-                rows={12}
-                className="w-full text-xs font-mono p-4 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 transition-all text-slate-800 placeholder:text-slate-400 leading-relaxed bg-slate-50/40"
-              />
+              <button
+                onClick={handleProcessPastedText}
+                disabled={isAnalyzing || !pastedText.trim()}
+                className="w-full py-3 px-5 text-sm font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] disabled:opacity-50"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-indigo-300" />
+                    <span>Matching Remote Openings...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Extract & Match Openings</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-xs text-slate-400">
-                  {pastedText.length} characters · {pastedText.trim() ? pastedText.trim().split(/\s+/).length : 0} words
-                </span>
+          {/* Location & Realistic Salary Preferences Bar */}
+          <div className="mt-6 pt-5 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/70 p-4 rounded-xl border border-slate-200/60">
+            {/* Where User Lives (State Filter) */}
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Where do you live? (Home State)</span>
+              </label>
+              <p className="text-[11px] text-slate-500 leading-snug">
+                Many remote companies only hire in specific states. Setting your state filters for state-specific remote jobs you are actually eligible for.
+              </p>
+              <select
+                value={userState}
+                onChange={(e) => setUserState(e.target.value)}
+                className="w-full text-xs font-medium py-2 px-3 bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-hidden focus:border-slate-800 cursor-pointer shadow-2xs"
+              >
+                <option value="All US">Nationwide (All 50 US States)</option>
+                {Object.entries(US_STATE_NAMES).map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name} ({code})
+                  </option>
+                ))}
+                <option value="International">Outside United States / International</option>
+              </select>
+            </div>
+
+            {/* Target Realistic Salary */}
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Target Salary (Realistic & Achievable)</span>
+              </label>
+              <p className="text-[11px] text-slate-500 leading-snug">
+                Keep job matches grounded in realistic market rates. Avoids out-of-reach salaries.
+              </p>
+
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSalaryTier('achievable')}
+                  className={`py-1.5 px-2 text-[11px] font-semibold rounded-lg border transition-all ${
+                    salaryTier === 'achievable'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  $45k - $75k
+                  <span className="block text-[9px] font-normal opacity-90">Achievable</span>
+                </button>
 
                 <button
-                  onClick={handleProcessPaste}
-                  disabled={!pastedText.trim() || isAnalyzing}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 text-xs sm:text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 rounded-xl shadow-md transition-all active:scale-[0.98]"
+                  type="button"
+                  onClick={() => setSalaryTier('mid')}
+                  className={`py-1.5 px-2 text-[11px] font-semibold rounded-lg border transition-all ${
+                    salaryTier === 'mid'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
                 >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-indigo-300" />
-                      <span>Pulling Resume...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Extract & Find Remote Jobs</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
+                  $60k - $90k
+                  <span className="block text-[9px] font-normal opacity-90">Mid-Range</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSalaryTier('senior')}
+                  className={`py-1.5 px-2 text-[11px] font-semibold rounded-lg border transition-all ${
+                    salaryTier === 'senior'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  $78k - $110k
+                  <span className="block text-[9px] font-normal opacity-90">Experienced</span>
                 </button>
               </div>
+
+              {salaryTier === 'custom' && (
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="number"
+                    value={customMinSalary}
+                    onChange={(e) => setCustomMinSalary(Number(e.target.value))}
+                    placeholder="Min ($)"
+                    className="w-1/2 p-1.5 text-xs border border-slate-200 rounded-md bg-white"
+                  />
+                  <span className="text-slate-400 text-xs">to</span>
+                  <input
+                    type="number"
+                    value={customMaxSalary}
+                    onChange={(e) => setCustomMaxSalary(Number(e.target.value))}
+                    placeholder="Max ($)"
+                    className="w-1/2 p-1.5 text-xs border border-slate-200 rounded-md bg-white"
+                  />
+                </div>
+              )}
             </div>
-          )}
-
-          {/* TAB 3: Curated Sample Profiles */}
-          {activeTab === 'samples' && (
-            <div className="space-y-4">
-              <div className="border-b border-slate-100 pb-3">
-                <h4 className="text-sm font-bold text-slate-900">
-                  Try Demo Resumes
-                </h4>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Click any sample to explore how JobHunta matches remote opportunities, career trajectories, and ATS tailoring:
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {SAMPLE_RESUMES.map((sample) => (
-                  <div
-                    key={sample.id}
-                    onClick={() => !isAnalyzing && onSelectSample(sample.id)}
-                    className="p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 text-left cursor-pointer transition-all group"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">
-                            {sample.name}
-                          </h4>
-                          <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                            Demo
-                          </span>
-                        </div>
-                        <p className="text-xs font-medium text-slate-700 mt-0.5">{sample.targetRole}</p>
-                      </div>
-                      <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                        {sample.yearsExp} yrs
-                      </span>
-                    </div>
-
-                    <div className="mt-2.5 text-xs text-slate-500 line-clamp-2">
-                      {sample.text.split('\n').filter((l) => l.trim().length > 35)[0] || sample.targetRole}
-                    </div>
-
-                    <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <span className="text-slate-400">{sample.seniority}</span>
-                      <span className="font-semibold text-indigo-600 group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
-                        Load Demo <ArrowRight className="w-3 h-3" />
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

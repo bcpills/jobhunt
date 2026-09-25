@@ -562,17 +562,21 @@ Provide ONLY the JSON response.`,
 
 // Helper: dynamic algorithmic job synthesizer when external AI is experiencing high demand (503/429)
 function generateFallbackJobsForCandidate(profile: any, filters?: any): any[] {
-  const title = profile?.title || 'Software Engineer';
+  const title = profile?.title || 'IT Support Specialist';
   const lowerTitle = title.toLowerCase();
-  const seniority = filters?.seniority && filters.seniority !== 'All' ? filters.seniority : (profile?.seniorityLevel || 'Senior');
+  const isIT = lowerTitle.includes('support') || lowerTitle.includes('desktop') || lowerTitle.includes('technician') || lowerTitle.includes('helpdesk') || lowerTitle.includes('it ');
+  const seniority = filters?.seniority && filters.seniority !== 'All' ? filters.seniority : (profile?.seniorityLevel || 'Mid-Level');
+  const userState = filters?.userState || profile?.userState || 'NC';
   const skills = profile?.primarySkills && profile.primarySkills.length > 0
     ? profile.primarySkills
-    : ['Technical Troubleshooting', 'Async Communication', 'Systems Administration', 'User Enablement'];
-  const minSal = profile?.salaryExpectationRange?.min || 85000;
-  const maxSal = profile?.salaryExpectationRange?.max || 125000;
-  const region = filters?.region && filters.region !== 'All Regions' ? filters.region : 'Worldwide / Americas';
-
-  const isIT = lowerTitle.includes('support') || lowerTitle.includes('desktop') || lowerTitle.includes('technician') || lowerTitle.includes('helpdesk') || lowerTitle.includes('it ');
+    : ['Technical Troubleshooting', 'Active Directory', 'ServiceNow', 'Hardware Imaging'];
+  const minSal = filters?.minSalary && filters.minSalary > 0
+    ? filters.minSalary
+    : (profile?.targetSalaryMin || profile?.salaryExpectationRange?.min || (isIT ? 52000 : 65000));
+  const maxSal = filters?.maxSalary && filters.maxSalary > 0
+    ? filters.maxSalary
+    : (profile?.targetSalaryMax || profile?.salaryExpectationRange?.max || (isIT ? 78000 : 95000));
+  const region = filters?.region && filters.region !== 'All Regions' ? filters.region : 'US / Americas';
 
   if (isIT) {
     return [
@@ -1222,26 +1226,34 @@ app.post('/api/jobs/find', async (req: Request, res: Response) => {
 
     const targetRoles = filters?.targetRole
       ? [filters.targetRole]
-      : profile.targetJobTitles || ['Software Engineer'];
-    const seniority = filters?.seniority || profile.seniorityLevel || 'Mid-Level';
-    const region = filters?.region || 'Worldwide / Anywhere or US';
+      : profile.targetJobTitles || ['IT Support Specialist'];
+    const seniority = filters?.seniority && filters.seniority !== 'All' ? filters.seniority : (profile.seniorityLevel || 'Mid-Level');
+    const region = filters?.region && filters.region !== 'All Regions' ? filters.region : 'US / Americas';
+    const userState = filters?.userState || profile.userState || 'NC';
+
+    const targetMin = filters?.minSalary && filters.minSalary > 0
+      ? filters.minSalary
+      : (profile.targetSalaryMin || profile.salaryExpectationRange?.min || 52000);
+    const targetMax = filters?.maxSalary && filters.maxSalary > 0
+      ? filters.maxSalary
+      : (profile.targetSalaryMax || profile.salaryExpectationRange?.max || 82000);
 
     const trajectory = profile.careerTrajectory || {
       progressionPace: 'Steady & Proven',
-      nextLogicalStep: 'Senior to Staff/Tech Lead level expansion',
-      leadershipTrajectory: 'Technical Lead / Senior IC',
+      nextLogicalStep: 'Senior Specialist or Systems Administrator expansion',
+      leadershipTrajectory: 'Senior Technical Lead / Specialist IC',
       velocitySummary: 'Demonstrates consistent velocity and ownership across multi-year initiatives.'
     };
 
     const culture = profile.inferredCulturePreferences || {
-      preferredCompanyStage: 'High-autonomy growth scaleup or distributed remote pioneer',
+      preferredCompanyStage: 'High-autonomy growth scaleup, public sector, or distributed remote pioneer',
       workstylePace: 'Async-first, high documentation, low meeting overhead',
-      teamEnvironment: 'Engineering-led, transparent roadmap, high individual ownership',
-      keyMotivators: ['Autonomy', 'Technical craft', 'High impact']
+      teamEnvironment: 'Mission-driven, transparent roadmap, high individual ownership',
+      keyMotivators: ['Autonomy', 'Problem solving', 'High impact']
     };
 
     const prompt = `You are a premier recruitment intelligence engine equipped with an ADVANCED MULTI-DIMENSIONAL JOB MATCHING ALGORITHM.
-Your mission is to find 6 to 9 REALISTIC, highly personalized remote job openings that perfectly match this candidate across three fundamental axes:
+Your mission is to find 16 to 20 REALISTIC, achievable, highly personalized remote job openings that match this candidate across three fundamental axes:
 1. Career Trajectory & Promotion Velocity
 2. Inferred Desired Company Culture & Operating Style (Startup vs. Corporate, Async vs. Sync)
 3. Deep Skill Overlap & Technical Parity
@@ -1251,66 +1263,84 @@ CANDIDATE PROFILE:
 - Current Title: ${profile.title}
 - Seniority Level: ${seniority}
 - Years of Experience: ${profile.yearsOfExperience || '5+'}
+- Home State / Resident Location: ${userState} (United States)
+- Target Realistic Salary: $${targetMin} - $${targetMax} USD / yr
 - Primary Skills: ${(profile.primarySkills || []).join(', ')}
 - Secondary Skills: ${(profile.secondarySkills || []).join(', ')}
 - Tools/Tech: ${(profile.toolsAndTechnologies || []).join(', ')}
-- Salary Range: $${profile.salaryExpectationRange?.min || 110000} - $${profile.salaryExpectationRange?.max || 160000} USD
 - Target Roles: ${targetRoles.join(', ')}
 - Preferred Remote Region: ${region}
-- Inferred Career Trajectory: Pace: ${trajectory.progressionPace}; Next Step: ${trajectory.nextLogicalStep}; Leadership: ${trajectory.leadershipTrajectory}; Summary: ${trajectory.velocitySummary}
-- Inferred Culture Preferences: Stage: ${culture.preferredCompanyStage}; Workstyle: ${culture.workstylePace}; Team: ${culture.teamEnvironment}
+- Inferred Career Trajectory: Next Step: ${trajectory.nextLogicalStep}; Summary: ${trajectory.velocitySummary}
+- Inferred Culture Preferences: Stage: ${culture.preferredCompanyStage}; Workstyle: ${culture.workstylePace}
 ${customQuery ? `- User Additional Search Request: ${customQuery}` : ''}
 
-ADVANCED MATCHING ALGORITHM REQUIREMENTS:
-- Evaluate Career Trajectory Fit (trajectoryFitScore: 0-100): Is this role the natural next step in their career arc? Does it expand their scope, provide the right level of ownership, or leverage their proven velocity?
-- Evaluate Culture & Workstyle Fit (cultureFitScore: 0-100): How closely does the company's operating model (early startup, high-autonomy scaleup, open-source async pioneer, or structured corporate) align with the candidate's inferred culture preference?
-- Evaluate Skill Overlap (skillOverlapScore: 0-100): Assess deep technical parity across core stack, transferable architectures, and identify honest minor gaps.
-- Compute Overall Match Score: (0.35 * skillOverlapScore) + (0.35 * trajectoryFitScore) + (0.30 * cultureFitScore), rounded to nearest integer (typically 78 to 97).
-- Company Diversity: Select real reputable remote employers (e.g. GitLab, Supabase, Buffer, Zapier, Automattic, Elastic, Stripe, Vercel, DuckDuckGo, Grafana Labs, 1Password, PostHog, Linear, Fly.io, etc.).
+CRITICAL REALISTIC COMPENSATION RULE:
+DO NOT generate inflated, unachievable salaries (such as $150k-$220k) for IT support, desktop tech, systems administration, help desk, customer operations, or junior/mid roles.
+Match compensation to realistic US market bands:
+- Support, IT Technician, Desktop, Helpdesk: $48,000 - $78,000 / yr (or hourly $24 - $38/hr)
+- Mid-Level / Systems / Operations: $58,000 - $88,000 / yr
+- Senior Systems / DevOps / Leads: $80,000 - $115,000 / yr
+- Respect the candidate's target compensation ceiling ($${targetMax} / yr). Do NOT return out-of-reach salaries!
 
-Return a valid JSON array of job objects:
+CRITICAL STATE-SPECIFIC REMOTE HIRING:
+Many remote employers only hire in specific US states (due to state payroll registration, tax withholding, and labor nexus).
+The candidate lives in: ${userState}.
+For each job object, provide:
+- "eligibleStates": array of 2-letter state codes where this company is legally registered to hire remote employees (e.g. ["NC", "VA", "SC", "GA", "FL", "TX", "OH", "TN"] or ["All US"]).
+- "stateEligibilityNote": clear explanation (e.g. "State-Specific Remote: Open to North Carolina, Virginia, Georgia, and 12 other states" or "Nationwide Remote: Open to all 50 states").
+Ensure that at least 80% of the returned remote jobs are ELIGIBLE for candidates residing in ${userState}!
+
+ADVANCED MATCHING ALGORITHM REQUIREMENTS:
+- Evaluate Career Trajectory Fit (trajectoryFitScore: 0-100)
+- Evaluate Culture & Workstyle Fit (cultureFitScore: 0-100)
+- Evaluate Skill Overlap (skillOverlapScore: 0-100)
+- Compute Overall Match Score: (0.35 * skillOverlapScore) + (0.35 * trajectoryFitScore) + (0.30 * cultureFitScore)
+- Company Diversity: Select real reputable remote employers (e.g. Canonical, Red Hat, Help Scout, NC State, Duke Health, Zapier, Automattic, Chewy, MetLife, GitLab, InVision, Buffer, 37signals, Cisco, Epic Games, Akamai, Red Ventures, Rackspace, Squarespace, DuckDuckGo, etc.).
+
+Return a valid JSON array of 16 to 20 job objects:
 [
   {
     "id": "job-uuid-1",
-    "title": "Senior Frontend Engineer - Remote",
-    "company": "GitLab",
-    "companyDomain": "gitlab.com",
-    "location": "Remote (Global / Americas)",
-    "timezoneRequirement": "UTC-8 to UTC+2 flexible",
+    "title": "Remote IT Support & Systems Operations Specialist",
+    "company": "Canonical",
+    "companyDomain": "canonical.com",
+    "location": "Remote (US - All 50 States)",
+    "timezoneRequirement": "US Flexible Timezones",
     "workArrangement": "100% Remote · Async First",
-    "salary": "$148,000 - $182,000 / yr + Equity",
-    "matchScore": 93,
+    "salary": "$68,000 - $88,000 / yr + Performance Bonus",
+    "matchScore": 96,
     "matchTier": "Strong Match",
-    "trajectoryFitScore": 92,
-    "cultureFitScore": 95,
-    "skillOverlapScore": 93,
-    "careerTrajectoryAnalysis": "Positions candidate for technical leadership in large-scale distributed systems, serving as the natural bridge between Senior IC and Staff Engineer.",
+    "eligibleStates": ["All US", "NC", "TX", "FL", "OH", "VA", "GA"],
+    "stateEligibilityNote": "Nationwide Remote: Open to all 50 states (including ${userState})",
+    "isStateSpecific": false,
+    "trajectoryFitScore": 95,
+    "cultureFitScore": 97,
+    "skillOverlapScore": 96,
+    "careerTrajectoryAnalysis": "Direct progression from enterprise desktop support to global distributed systems operations.",
     "cultureFitDetails": {
-      "companyStage": "Public Remote Pioneer (~2,000 employees)",
-      "operatingStyle": "100% Async-first, public handbook, zero calendar clutter",
-      "alignmentNotes": "Directly matches candidate's proven strength in asynchronous RFC writing and self-directed sprint execution."
+      "companyStage": "Global Distributed Pioneer (1,000+ staff)",
+      "operatingStyle": "100% Async-first, public documentation, zero calendar clutter",
+      "alignmentNotes": "Directly matches candidate's proven strengths in self-directed troubleshooting and ticketing."
     },
     "skillOverlapDetails": {
-      "matchedCore": ["TypeScript", "React", "State Management", "Web Performance"],
-      "transferableSkills": ["Component Design Systems", "CI/CD Pipelines", "Async Code Review"],
-      "gaps": ["Vue.js / Ruby on Rails integration"]
+      "matchedCore": ["Active Directory", "Hardware Troubleshooting", "ServiceNow", "Computer Imaging"],
+      "transferableSkills": ["Python Scripting", "Asset Management"],
+      "gaps": ["Landscape Linux administration"]
     },
     "matchReasoning": [
-      "Extensive modern TypeScript & React architecture background matches GitLab’s stack.",
-      "Proven experience building real-time collaboration engines and asynchronous RFC documentation workflows.",
-      "Documented success cutting bundle load times by 48% aligns directly with GitLab’s performance team goals."
+      "Extensive enterprise technical support background matches distributed employee fleet needs.",
+      "Realistic compensation tier matches candidate target range.",
+      "Eligible for remote hiring in ${userState}."
     ],
-    "skillGaps": [
-      "Familiarity with Vue.js/Ruby on Rails monolith integration is beneficial to brush up on."
-    ],
+    "skillGaps": ["Review Linux remote management workflows."],
     "description": "Comprehensive role summary...",
     "keyResponsibilities": ["Key responsibility 1", "Key responsibility 2"],
     "requirements": ["Requirement 1", "Requirement 2"],
-    "benefits": ["$2,500 Home Office stipend", "Unlimited PTO", "Learning budget"],
+    "benefits": ["$1,500 Home Office stipend", "Unlimited PTO", "Healthcare"],
     "postedDate": "Just now",
-    "applicantCompetition": "Moderate",
-    "applyUrl": "https://about.gitlab.com/jobs/all-jobs/",
-    "source": "GitLab Remote Careers"
+    "applicantCompetition": "Low",
+    "applyUrl": "https://canonical.com/careers",
+    "source": "Canonical Remote Careers"
   }
 ]
 Return ONLY the JSON array.`;

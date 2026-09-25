@@ -27,6 +27,10 @@ export interface CandidateProfile {
   summary: string;
   seniorityLevel: SeniorityLevel;
   yearsOfExperience: number;
+  userState?: string; // e.g. "NC", "North Carolina", "TX", etc.
+  userLocation?: string; // e.g. "Raleigh, NC"
+  targetSalaryMin?: number;
+  targetSalaryMax?: number;
   primarySkills: string[];
   secondarySkills: string[];
   toolsAndTechnologies: string[];
@@ -63,6 +67,11 @@ export interface JobOpening {
   matchScore: number; // Multidimensional overall score (0-100)
   matchTier: 'Strong Match' | 'Solid Fit' | 'Stretch Role';
   
+  // State-specific remote eligibility
+  eligibleStates?: string[]; // e.g. ['NC', 'VA', 'SC', 'GA', 'FL', 'All US']
+  stateEligibilityNote?: string; // e.g. "Open to North Carolina and 28 other states" or "Hiring in all 50 states"
+  isStateSpecific?: boolean;
+
   // Advanced Matching Algorithm Multi-Factor Breakdown
   trajectoryFitScore: number; // 0-100 score based on career progression & promotion readiness
   cultureFitScore: number;    // 0-100 score based on startup vs corporate & workstyle alignment
@@ -184,7 +193,11 @@ export interface JobFilterState {
   searchQuery: string;
   seniority: string;
   minSalary: number;
+  maxSalary?: number;
+  salaryTier?: 'all' | 'achievable' | 'mid' | 'senior' | 'custom';
+  userState?: string; // e.g. "NC", "TX", "All States"
+  onlyMyState?: boolean;
   minMatchScore: number;
   region: string;
-  sortBy?: 'overallMatch' | 'trajectoryFit' | 'cultureFit' | 'skillOverlap';
+  sortBy?: 'overallMatch' | 'trajectoryFit' | 'cultureFit' | 'skillOverlap' | 'salaryLowToHigh' | 'salaryHighToLow';
 }
