@@ -2,12 +2,13 @@ import React, { useState, useRef } from 'react';
 import { X, UploadCloud, FileText, CheckCircle2, AlertCircle, ArrowRight, Loader2, RefreshCw, FileCode, Check } from 'lucide-react';
 import { SAMPLE_RESUMES, SampleResume } from '../data/sampleResumes';
 import { convertDocumentToPlainText } from '../services/api';
+import { extractTextFromFileInBrowser, fileToCleanBase64 } from '../utils/clientDocumentExtractor';
 
 interface ResumeUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAnalyzeText: (text: string) => Promise<void>;
-  onAnalyzeFile: (fileBase64: string, mimeType: string, fileName: string) => Promise<void>;
+  onAnalyzeFile: (fileBase64: string, mimeType: string, fileName: string, clientText?: string) => Promise<void>;
   isAnalyzing: boolean;
   activeResumeName?: string;
 }
@@ -65,63 +66,39 @@ export const ResumeUploadModal: React.FC<ResumeUploadModalProps> = ({
     setInfoMessage(null);
     setIsConvertingToText(true);
 
-    const fileNameLower = selectedFile.name.toLowerCase();
-    const isPlainText = fileNameLower.endsWith('.txt') || fileNameLower.endsWith('.md');
-
-    if (isPlainText) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = (e.target?.result as string) || '';
-        setPastedText(text);
+    try {
+      // 1. In-browser extraction first (instant on Netlify & mobile)
+      const browserText = await extractTextFromFileInBrowser(selectedFile);
+      if (browserText && browserText.trim().length > 25) {
+        setPastedText(browserText.trim());
         setActiveTab('paste');
-        setIsConvertingToText(false);
         setInfoMessage('Document converted to plain text! Review or edit below, then click "Extract & Match Openings".');
-      };
-      reader.onerror = () => {
-        setIsConvertingToText(false);
-        setErrorMessage('Unable to read selected text file.');
-      };
-      reader.readAsText(selectedFile);
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = e.target?.result as string;
-      try {
-        let mime = selectedFile.type;
-        if (!mime) {
-          if (fileNameLower.endsWith('.pdf')) mime = 'application/pdf';
-          else if (fileNameLower.endsWith('.docx')) mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-          else if (fileNameLower.endsWith('.doc')) mime = 'application/msword';
-          else mime = 'application/pdf';
-        }
-        const result = await convertDocumentToPlainText({
-          fileBase64: base64,
-          mimeType: mime,
-          fileName: selectedFile.name,
-        });
-
-        if (result && result.plainText) {
-          setPastedText(result.plainText);
-          setActiveTab('paste');
-          setInfoMessage(result.note || 'Resume successfully turned into plain text! You can review, edit, and click "Extract & Match Openings".');
-        } else {
-          throw new Error('No text could be extracted.');
-        }
-      } catch (err: any) {
-        setErrorMessage(
-          err.message || 'Could not convert automatically. Please copy and paste your resume text directly into the "Paste Resume Text" tab.'
-        );
-      } finally {
-        setIsConvertingToText(false);
+        return;
       }
-    };
-    reader.onerror = () => {
+
+      // 2. Fallback to API text conversion
+      const cleanData = await fileToCleanBase64(selectedFile);
+      const result = await convertDocumentToPlainText({
+        fileBase64: cleanData.base64,
+        mimeType: cleanData.mimeType,
+        fileName: selectedFile.name,
+        clientExtractedText: browserText,
+      });
+
+      if (result && result.plainText) {
+        setPastedText(result.plainText);
+        setActiveTab('paste');
+        setInfoMessage(result.note || 'Resume successfully turned into plain text! Review, edit, and click "Extract & Match Openings".');
+      } else {
+        throw new Error('No text could be extracted.');
+      }
+    } catch (err: any) {
+      setErrorMessage(
+        err.message || 'Could not convert automatically. Please copy and paste your resume text directly into the "Paste Resume Text" tab.'
+      );
+    } finally {
       setIsConvertingToText(false);
-      setErrorMessage('Error reading file. Please try pasting the resume text directly.');
-    };
-    reader.readAsDataURL(selectedFile);
+    }
   };
 
   const handleProcessFile = async () => {
@@ -129,51 +106,35 @@ export const ResumeUploadModal: React.FC<ResumeUploadModalProps> = ({
     setErrorMessage(null);
     setInfoMessage(null);
 
-    const fileNameLower = selectedFile.name.toLowerCase();
-    const isPlainText = fileNameLower.endsWith('.txt') || fileNameLower.endsWith('.md');
-
-    if (isPlainText) {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const text = e.target?.result as string;
-        try {
-          await onAnalyzeText(text);
-          onClose();
-        } catch (err: any) {
-          setErrorMessage(err.message || 'Analysis failed. Please check your document or paste text directly.');
-        }
-      };
-      reader.onerror = () => {
-        setErrorMessage('Unable to read selected text file. Please try pasting its content.');
-      };
-      reader.readAsText(selectedFile);
-      return;
-    }
-
-    // For PDF, DOCX, or other formatted documents: read as DataURL (base64)
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = e.target?.result as string;
+    try {
+      // 1. In-browser text extraction first (works on iOS Safari, Android, Netlify static, and desktop)
+      let inBrowserText = '';
       try {
-        let mime = selectedFile.type;
-        if (!mime) {
-          if (fileNameLower.endsWith('.pdf')) mime = 'application/pdf';
-          else if (fileNameLower.endsWith('.docx')) mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-          else if (fileNameLower.endsWith('.doc')) mime = 'application/msword';
-          else mime = 'application/pdf';
-        }
-        await onAnalyzeFile(base64, mime, selectedFile.name);
-        onClose();
-      } catch (err: any) {
-        setErrorMessage(
-          err.message || 'Could not read document. Use the "Turn into Plain Text" button or paste text directly.'
-        );
+        inBrowserText = await extractTextFromFileInBrowser(selectedFile);
+      } catch (err) {
+        console.warn('In-browser extraction notice:', err);
       }
-    };
-    reader.onerror = () => {
-      setErrorMessage('Error reading file. Please try pasting the resume text directly.');
-    };
-    reader.readAsDataURL(selectedFile);
+
+      // 2. Prepare clean, sanitized base64 (stripped of newlines/whitespace to avoid packet malformed errors)
+      let cleanBase64 = '';
+      let mime = selectedFile.type || 'application/pdf';
+      try {
+        const cleanData = await fileToCleanBase64(selectedFile);
+        cleanBase64 = cleanData.base64;
+        mime = cleanData.mimeType;
+      } catch (e) {
+        console.warn('Base64 preparation notice:', e);
+      }
+
+      // 3. Dispatch analysis with both client-extracted text and clean base64
+      await onAnalyzeFile(cleanBase64, mime, selectedFile.name, inBrowserText);
+      onClose();
+    } catch (err: any) {
+      console.error('Document analysis error:', err);
+      setErrorMessage(
+        err.message || 'Could not read document. Use the "Turn into Plain Text" button or paste text directly.'
+      );
+    }
   };
 
   const handleProcessPaste = async () => {

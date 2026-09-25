@@ -17,6 +17,17 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
+// Graceful body-parser error handling middleware (prevents unhandled packet malformed errors)
+app.use((err: any, req: Request, res: Response, next: any) => {
+  if (err && (err.type === 'entity.parse.failed' || err.status === 400)) {
+    console.warn('Handled payload parsing notice:', err.message);
+    return res.status(400).json({
+      error: 'Malformed request payload received. Please paste your resume text directly.',
+    });
+  }
+  next(err);
+});
+
 // Initialize Gemini Client
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',
@@ -48,28 +59,58 @@ function cleanAndParseJSON(text: string): any {
   }
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // Helper: multi-model fallback to survive 503 / 429 / high demand spikes
 async function callGeminiWithFallback(params: {
   contents: any;
   config?: any;
   models?: string[];
 }): Promise<any> {
-  const models = params.models || ['gemini-3.8-flash', 'gemini-2.5-flash'];
+  const models = params.models || ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
   let lastError: any = null;
 
   for (const model of models) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: params.contents,
-        config: params.config,
-      });
-      if (response && response.text) {
-        return response;
+    // Retry up to 2 attempts with exponential backoff on demand spikes (503 / 429)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`Model ${model} timed out during demand spike (503)`)), 8500)
+        );
+        const response: any = await Promise.race([
+          ai.models.generateContent({
+            model,
+            contents: params.contents,
+            config: params.config,
+          }),
+          timeoutPromise,
+        ]);
+        if (response && response.text) {
+          return response;
+        }
+      } catch (err: any) {
+        lastError = err;
+        const msg = String(err?.message || err);
+        const isTemporary =
+          msg.includes('503') ||
+          msg.includes('429') ||
+          msg.includes('timed out') ||
+          msg.includes('high demand') ||
+          msg.includes('Spikes in demand') ||
+          msg.includes('UNAVAILABLE') ||
+          msg.includes('ResourceExhausted');
+
+        if (isTemporary && attempt === 0) {
+          console.warn(`Model ${model} experiencing momentary spike in demand (503/429), retrying in 750ms...`);
+          await sleep(750);
+          continue;
+        }
+
+        console.warn(`Model ${model} unavailable, trying alternate model:`, msg.slice(0, 140));
+        break;
       }
-    } catch (err: any) {
-      console.warn(`Model ${model} unavailable or busy, checking alternate model:`, err?.message || err);
-      lastError = err;
     }
   }
   throw lastError;
@@ -336,8 +377,7 @@ app.post('/api/resume/convert-to-text', async (req: Request, res: Response) => {
   // If local parsing yielded empty text and it's a PDF (scanned image PDF), attempt Gemini OCR
   if (mimeType && mimeType.includes('pdf')) {
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
+      const response = await callGeminiWithFallback({
         contents: {
           parts: [
             {
@@ -515,9 +555,8 @@ Provide ONLY the JSON response.`,
       return res.json({ profile: fallbackProfile, isFallback: true });
     }
 
-    return res.status(500).json({
-      error: error.message || 'Failed to analyze resume. Please paste your resume text directly.',
-    });
+    const fallbackProfile = extractFallbackProfileFromText(fileName ? `Resume: ${fileName}` : 'Candidate Technical Profile', fileName);
+    return res.json({ profile: fallbackProfile, isFallback: true });
   }
 });
 

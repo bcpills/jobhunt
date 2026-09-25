@@ -15,10 +15,11 @@ import {
 } from 'lucide-react';
 import { SAMPLE_RESUMES, SampleResume } from '../data/sampleResumes';
 import { convertDocumentToPlainText } from '../services/api';
+import { extractTextFromFileInBrowser, fileToCleanBase64 } from '../utils/clientDocumentExtractor';
 
 interface ResumeLaunchpadProps {
   onAnalyzeText: (text: string) => Promise<void>;
-  onAnalyzeFile: (fileBase64: string, mimeType: string, fileName: string) => Promise<void>;
+  onAnalyzeFile: (fileBase64: string, mimeType: string, fileName: string, clientText?: string) => Promise<void>;
   onSelectSample: (sampleId: string) => void;
   isAnalyzing: boolean;
 }
@@ -34,6 +35,7 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
   const [pastedText, setPastedText] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [isConvertingToText, setIsConvertingToText] = useState(false);
+  const [isExtractingLocal, setIsExtractingLocal] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,14 +51,14 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
   };
 
   const handleFileSelected = (file: File) => {
-    const validExtensions = ['.pdf', '.docx', '.doc', '.txt', '.md'];
+    const validExtensions = ['.pdf', '.docx', '.doc', '.txt', '.md', '.rtf'];
     const hasValidExt = validExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
     if (!hasValidExt) {
       setErrorMessage('Please upload a PDF, DOCX, DOC, TXT, or Markdown resume file.');
       return;
     }
-    if (file.size > 20 * 1024 * 1024) {
-      setErrorMessage('File size exceeds 20MB limit.');
+    if (file.size > 25 * 1024 * 1024) {
+      setErrorMessage('File size exceeds 25MB limit.');
       return;
     }
     setSelectedFile(file);
@@ -68,43 +70,38 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
     if (!selectedFile) return;
     setErrorMessage(null);
     setInfoMessage(null);
+    setIsExtractingLocal(true);
 
-    const fileNameLower = selectedFile.name.toLowerCase();
-    const isPlainText = fileNameLower.endsWith('.txt') || fileNameLower.endsWith('.md');
-
-    if (isPlainText) {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const text = (e.target?.result as string) || '';
-        try {
-          await onAnalyzeText(text);
-        } catch (err: any) {
-          setErrorMessage(err.message || 'Failed to analyze text resume.');
-        }
-      };
-      reader.readAsText(selectedFile);
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = (e.target?.result as string) || '';
+    try {
+      // 1. In-browser extraction (works on iOS Safari, Android, Netlify static, and desktop)
+      let inBrowserText = '';
       try {
-        let mime = selectedFile.type;
-        if (!mime) {
-          if (fileNameLower.endsWith('.pdf')) mime = 'application/pdf';
-          else if (fileNameLower.endsWith('.docx')) mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-          else if (fileNameLower.endsWith('.doc')) mime = 'application/msword';
-          else mime = 'application/pdf';
-        }
-        await onAnalyzeFile(base64, mime, selectedFile.name);
-      } catch (err: any) {
-        setErrorMessage(
-          err.message || 'Could not parse document. Try using "Preview Plain Text" or pasting your resume directly.'
-        );
+        inBrowserText = await extractTextFromFileInBrowser(selectedFile);
+      } catch (err) {
+        console.warn('In-browser extraction notice:', err);
       }
-    };
-    reader.readAsDataURL(selectedFile);
+
+      // 2. Clean base64 sanitized of newlines/whitespace (prevents HTTP packet malformed errors)
+      let cleanBase64 = '';
+      let mime = selectedFile.type || 'application/pdf';
+      try {
+        const cleanData = await fileToCleanBase64(selectedFile);
+        cleanBase64 = cleanData.base64;
+        mime = cleanData.mimeType;
+      } catch (e) {
+        console.warn('Base64 preparation notice:', e);
+      }
+
+      // 3. Dispatch analysis with both client-extracted text and clean base64
+      await onAnalyzeFile(cleanBase64, mime, selectedFile.name, inBrowserText);
+    } catch (err: any) {
+      console.error('File analysis error:', err);
+      setErrorMessage(
+        err.message || 'Could not parse document. Try using "Preview & Edit as Plain Text" or pasting your resume directly.'
+      );
+    } finally {
+      setIsExtractingLocal(false);
+    }
   };
 
   const handleConvertToPlainText = async () => {
@@ -113,55 +110,39 @@ export const ResumeLaunchpad: React.FC<ResumeLaunchpadProps> = ({
     setInfoMessage(null);
     setIsConvertingToText(true);
 
-    const fileNameLower = selectedFile.name.toLowerCase();
-    const isPlainText = fileNameLower.endsWith('.txt') || fileNameLower.endsWith('.md');
-
-    if (isPlainText) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = (e.target?.result as string) || '';
-        setPastedText(text);
+    try {
+      // 1. In-browser extraction first (instant, runs client-side on Netlify & mobile)
+      const browserText = await extractTextFromFileInBrowser(selectedFile);
+      if (browserText && browserText.trim().length > 25) {
+        setPastedText(browserText.trim());
         setActiveTab('paste');
-        setIsConvertingToText(false);
-        setInfoMessage('File converted to plain text below. Review or edit, then click "Extract & Find Remote Jobs".');
-      };
-      reader.readAsText(selectedFile);
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = (e.target?.result as string) || '';
-      try {
-        let mime = selectedFile.type;
-        if (!mime) {
-          if (fileNameLower.endsWith('.pdf')) mime = 'application/pdf';
-          else if (fileNameLower.endsWith('.docx')) mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-          else if (fileNameLower.endsWith('.doc')) mime = 'application/msword';
-          else mime = 'application/pdf';
-        }
-        const result = await convertDocumentToPlainText({
-          fileBase64: base64,
-          mimeType: mime,
-          fileName: selectedFile.name,
-        });
-
-        if (result && result.plainText) {
-          setPastedText(result.plainText);
-          setActiveTab('paste');
-          setInfoMessage(result.note || 'Resume text extracted! You can review or edit below, then click "Extract & Find Remote Jobs".');
-        } else {
-          throw new Error('No readable text could be extracted.');
-        }
-      } catch (err: any) {
-        setErrorMessage(
-          err.message || 'Unable to convert automatically. Please paste your resume text directly into the "Paste Resume Text" tab.'
-        );
-      } finally {
-        setIsConvertingToText(false);
+        setInfoMessage('Document converted to plain text below. Review or edit, then click "Extract & Find Remote Jobs".');
+        return;
       }
-    };
-    reader.readAsDataURL(selectedFile);
+
+      // 2. Fallback to API text conversion
+      const cleanData = await fileToCleanBase64(selectedFile);
+      const result = await convertDocumentToPlainText({
+        fileBase64: cleanData.base64,
+        mimeType: cleanData.mimeType,
+        fileName: selectedFile.name,
+        clientExtractedText: browserText,
+      });
+
+      if (result && result.plainText) {
+        setPastedText(result.plainText);
+        setActiveTab('paste');
+        setInfoMessage(result.note || 'Resume text extracted! Review or edit below, then click "Extract & Find Remote Jobs".');
+      } else {
+        throw new Error('No readable text could be extracted.');
+      }
+    } catch (err: any) {
+      setErrorMessage(
+        err.message || 'Unable to convert automatically. Please paste your resume text directly into the "Paste Resume Text" tab.'
+      );
+    } finally {
+      setIsConvertingToText(false);
+    }
   };
 
   const handleProcessPaste = async () => {

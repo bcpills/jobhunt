@@ -4,6 +4,7 @@ import { SAMPLE_RESUMES } from './data/sampleResumes';
 import { DEFAULT_REMOTE_JOBS } from './data/defaultJobs';
 import { DEFAULT_COMPANY_RESEARCH } from './data/defaultCompanyResearch';
 import { analyzeResume, findRemoteJobs, tailorResumeToRole, generateCoverLetter, fetchCompanyResearch } from './services/api';
+import { generateClientSideJobs } from './utils/clientResumeParser';
 import { Navbar } from './components/Navbar';
 import { CandidateProfileBar } from './components/CandidateProfileBar';
 import { JobFilterBar } from './components/JobFilterBar';
@@ -96,11 +97,11 @@ export default function App() {
   };
 
   // 2. Analyze Resume from File Base64
-  const handleAnalyzeFile = async (fileBase64: string, mimeType: string, fileName: string) => {
+  const handleAnalyzeFile = async (fileBase64: string, mimeType: string, fileName: string, clientText?: string) => {
     setIsAnalyzing(true);
     setErrorMessage(null);
     try {
-      const extractedProfile = await analyzeResume({ fileBase64, mimeType, fileName });
+      const extractedProfile = await analyzeResume({ resumeText: clientText, fileBase64, mimeType, fileName });
       setProfile(extractedProfile);
       showToast(`Ingested ${fileName}! Sourcing remote jobs for ${extractedProfile.name}...`);
       await fetchJobsForProfile(extractedProfile);
@@ -127,16 +128,20 @@ export default function App() {
       });
       if (remoteJobs && remoteJobs.length > 0) {
         setJobs(remoteJobs);
+      } else {
+        const fallback = generateClientSideJobs(targetProfile, {
+          seniority: filters.seniority !== 'All' ? filters.seniority : targetProfile.seniorityLevel,
+          region: filters.region !== 'All Regions' ? filters.region : undefined,
+        });
+        setJobs(fallback);
       }
     } catch (err: any) {
-      console.error('Fetch jobs error:', err);
-      const friendlyMsg = err?.message && !err.message.includes('{"error"')
-        ? err.message
-        : 'The AI model is experiencing a momentary spike in traffic. Showing curated remote opportunities matched to your profile.';
-      setErrorMessage(friendlyMsg);
-      if (DEFAULT_REMOTE_JOBS && DEFAULT_REMOTE_JOBS.length > 0) {
-        setJobs(DEFAULT_REMOTE_JOBS);
-      }
+      console.error('Fetch jobs error, activating personalized client matcher:', err);
+      const fallbackJobs = generateClientSideJobs(targetProfile, {
+        seniority: filters.seniority !== 'All' ? filters.seniority : targetProfile.seniorityLevel,
+        region: filters.region !== 'All Regions' ? filters.region : undefined,
+      });
+      setJobs(fallbackJobs);
     } finally {
       setIsLoadingJobs(false);
     }
