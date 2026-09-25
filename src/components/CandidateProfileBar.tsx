@@ -10,17 +10,20 @@ import {
   CheckCircle2,
   TrendingUp,
   Award,
-  Sparkles
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
 
 interface CandidateProfileBarProps {
   profile: CandidateProfile;
   onViewResume: () => void;
+  onStartOver?: () => void;
 }
 
 export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
   profile,
   onViewResume,
+  onStartOver,
 }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -101,6 +104,17 @@ export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
               <FileText className="w-3.5 h-3.5 text-slate-500" />
               <span>View Ingested Resume</span>
             </button>
+
+            {onStartOver && (
+              <button
+                onClick={onStartOver}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors shadow-2xs"
+                title="Clear profile and start over"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-rose-500" />
+                <span>Start Over</span>
+              </button>
+            )}
 
             <button
               onClick={() => setExpanded(!expanded)}

@@ -1,5 +1,27 @@
 import { CandidateProfile, JobOpening, TailoredResume, CoverLetter, CompanyResearchData } from '../types';
 
+function extractErrorMessage(errorData: any, fallback: string): string {
+  if (!errorData) return fallback;
+  const raw = errorData.error || errorData.message;
+  if (!raw) return fallback;
+  if (typeof raw === 'object') {
+    return raw.message || raw.status || fallback;
+  }
+  if (typeof raw === 'string') {
+    if (raw.includes('"message":') || raw.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.error?.message) return parsed.error.message;
+        if (parsed?.message) return parsed.message;
+      } catch (e) {
+        // ignore
+      }
+    }
+    return raw;
+  }
+  return fallback;
+}
+
 export async function convertDocumentToPlainText(params: {
   fileBase64: string;
   mimeType: string;
@@ -13,7 +35,7 @@ export async function convertDocumentToPlainText(params: {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to convert document to plain text.');
+    throw new Error(extractErrorMessage(errorData, 'Failed to convert document to plain text.'));
   }
 
   return await response.json();
@@ -33,7 +55,7 @@ export async function analyzeResume(params: {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to analyze resume.');
+    throw new Error(extractErrorMessage(errorData, 'Failed to analyze resume.'));
   }
 
   const data = await response.json();
@@ -57,7 +79,7 @@ export async function findRemoteJobs(params: {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to pull remote jobs.');
+    throw new Error(extractErrorMessage(errorData, 'Failed to pull remote jobs.'));
   }
 
   const data = await response.json();
@@ -77,7 +99,7 @@ export async function tailorResumeToRole(params: {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to tailor resume.');
+    throw new Error(extractErrorMessage(errorData, 'Failed to tailor resume.'));
   }
 
   const data = await response.json();
@@ -102,7 +124,7 @@ export async function generateCoverLetter(params: {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to generate cover letter.');
+    throw new Error(extractErrorMessage(errorData, 'Failed to generate cover letter.'));
   }
 
   const data = await response.json();
@@ -123,7 +145,7 @@ export async function fetchCompanyResearch(params: {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to retrieve company intelligence.');
+    throw new Error(extractErrorMessage(errorData, 'Failed to retrieve company intelligence.'));
   }
 
   const data = await response.json();

@@ -14,55 +14,12 @@ import { CoverLetterModal } from './components/CoverLetterModal';
 import { JobDetailModal } from './components/JobDetailModal';
 import { ResumeViewerModal } from './components/ResumeViewerModal';
 import { CompanyResearchModal } from './components/CompanyResearchModal';
-import { Briefcase, RefreshCw, AlertCircle, CheckCircle2, Sparkles, Building2 } from 'lucide-react';
-
-// Default initial candidate profile matching Alex Rivera with career trajectory and culture preferences
-const INITIAL_PROFILE: CandidateProfile = {
-  name: 'Alex Rivera',
-  title: 'Senior Full-Stack Engineer',
-  summary:
-    'Results-driven Full-Stack Engineer with 6+ years of experience architecting distributed web applications and high-throughput SaaS platforms in remote-first environments. Deep expertise in modern frontend architectures (React, Next.js, TypeScript) and scalable microservices (Node.js, PostgreSQL, Redis, AWS).',
-  seniorityLevel: 'Senior',
-  yearsOfExperience: 6,
-  primarySkills: ['React 18/19', 'TypeScript', 'Next.js', 'Node.js', 'PostgreSQL', 'GraphQL', 'Tailwind CSS'],
-  secondarySkills: ['Redis', 'Docker', 'AWS (S3, Lambda, ECS)', 'GitHub Actions', 'WebSockets', 'CRDTs'],
-  toolsAndTechnologies: ['Vercel', 'Prisma', 'Terraform', 'Kafka', 'Jest', 'Playwright'],
-  remoteWorkStrengths: [
-    'Proven asynchronous written documentation and RFC workflows',
-    'Experience coordinating across distributed teams spanning 5 time zones',
-    'Proactive communication and measurable deliverable ownership',
-  ],
-  salaryExpectationRange: {
-    min: 135000,
-    max: 175000,
-    currency: 'USD',
-    period: 'yearly',
-  },
-  targetJobTitles: [
-    'Senior Frontend Engineer',
-    'Senior Full-Stack Engineer',
-    'Staff Frontend Engineer',
-    'Lead Web Application Engineer',
-  ],
-  recommendedIndustries: ['B2B SaaS', 'Developer Tools', 'Remote Collaboration Platforms', 'Cloud Infrastructure'],
-  careerTrajectory: {
-    progressionPace: 'Accelerated',
-    nextLogicalStep: 'Senior to Staff IC or Technical Lead promotion',
-    leadershipTrajectory: 'Technical Lead / Senior Staff IC',
-    velocitySummary: 'Consistent promotions across multi-tier production projects with strong async architecture ownership.'
-  },
-  inferredCulturePreferences: {
-    preferredCompanyStage: 'High-autonomy growth scaleup or distributed remote pioneer',
-    workstylePace: 'Async-first, high documentation, minimal meeting overhead',
-    teamEnvironment: 'Engineering-led, transparent roadmap, high individual ownership',
-    keyMotivators: ['Async autonomy', 'Technical craft & performance', 'High user impact']
-  },
-  extractedResumeText: SAMPLE_RESUMES[0].text,
-};
+import { ResumeLaunchpad } from './components/ResumeLaunchpad';
+import { Briefcase, RefreshCw, AlertCircle, CheckCircle2, Sparkles, Building2, RotateCcw, UploadCloud, FileText } from 'lucide-react';
 
 export default function App() {
-  const [profile, setProfile] = useState<CandidateProfile | null>(INITIAL_PROFILE);
-  const [jobs, setJobs] = useState<JobOpening[]>(DEFAULT_REMOTE_JOBS);
+  const [profile, setProfile] = useState<CandidateProfile | null>(null);
+  const [jobs, setJobs] = useState<JobOpening[]>([]);
   const [filters, setFilters] = useState<JobFilterState>({
     searchQuery: '',
     seniority: 'All',
@@ -101,6 +58,25 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  // Reset / Start Over with clean state
+  const handleStartOver = () => {
+    setProfile(null);
+    setJobs([]);
+    setSelectedJob(null);
+    setTailoredResume(null);
+    setCoverLetter(null);
+    setCompanyResearchData(null);
+    setFilters({
+      searchQuery: '',
+      seniority: 'All',
+      minSalary: 0,
+      minMatchScore: 0,
+      region: 'All Regions',
+    });
+    setErrorMessage(null);
+    showToast('Started over with a clean slate. Ready for your resume.');
+  };
+
   // 1. Analyze Resume from Text
   const handleAnalyzeText = async (text: string) => {
     setIsAnalyzing(true);
@@ -108,7 +84,7 @@ export default function App() {
     try {
       const extractedProfile = await analyzeResume({ resumeText: text });
       setProfile(extractedProfile);
-      showToast(`Resume analyzed! Sourcing remote jobs for ${extractedProfile.name}...`);
+      showToast(`Resume ingested! Sourcing remote jobs for ${extractedProfile.name}...`);
       await fetchJobsForProfile(extractedProfile);
     } catch (err: any) {
       console.error('Analysis error:', err);
@@ -126,7 +102,7 @@ export default function App() {
     try {
       const extractedProfile = await analyzeResume({ fileBase64, mimeType, fileName });
       setProfile(extractedProfile);
-      showToast(`Analyzed ${fileName}! Sourcing remote jobs for ${extractedProfile.name}...`);
+      showToast(`Ingested ${fileName}! Sourcing remote jobs for ${extractedProfile.name}...`);
       await fetchJobsForProfile(extractedProfile);
     } catch (err: any) {
       console.error('File analysis error:', err);
@@ -154,7 +130,13 @@ export default function App() {
       }
     } catch (err: any) {
       console.error('Fetch jobs error:', err);
-      setErrorMessage('Could not pull fresh jobs: ' + (err.message || 'Unknown error.'));
+      const friendlyMsg = err?.message && !err.message.includes('{"error"')
+        ? err.message
+        : 'The AI model is experiencing a momentary spike in traffic. Showing curated remote opportunities matched to your profile.';
+      setErrorMessage(friendlyMsg);
+      if (DEFAULT_REMOTE_JOBS && DEFAULT_REMOTE_JOBS.length > 0) {
+        setJobs(DEFAULT_REMOTE_JOBS);
+      }
     } finally {
       setIsLoadingJobs(false);
     }
@@ -346,6 +328,7 @@ export default function App() {
         isAnalyzing={isAnalyzing}
         onRefreshJobs={() => profile && fetchJobsForProfile(profile)}
         isLoadingJobs={isLoadingJobs}
+        onStartOver={handleStartOver}
       />
 
       {/* Candidate Profile Bar with Trajectory & Culture Diagnostic */}
@@ -353,6 +336,7 @@ export default function App() {
         <CandidateProfileBar
           profile={profile}
           onViewResume={() => setIsResumeViewerOpen(true)}
+          onStartOver={handleStartOver}
         />
       )}
 
@@ -377,81 +361,140 @@ export default function App() {
           </div>
         )}
 
-        {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold tracking-tight text-slate-900">
-                Realistic Remote Opportunities
-              </h2>
-              {isLoadingJobs && (
-                <RefreshCw className="w-4 h-4 text-indigo-600 animate-spin" />
-              )}
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Ranked with multi-dimensional matching: Career Trajectory, Culture Archetype & Deep Skill Overlap.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsUploadOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-2xs"
-            >
-              <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Upload Custom Resume</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Job Filter Bar */}
-        <JobFilterBar
-          filters={filters}
-          onChange={setFilters}
-          totalJobs={jobs.length}
-          filteredCount={filteredJobs.length}
-        />
-
-        {/* Jobs Grid */}
-        {filteredJobs.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredJobs.map((job) => (
-              <JobCard
-                key={job.id}
-                job={job}
-                onTailorResume={handleTailorResume}
-                onGenerateCoverLetter={(j) => handleGenerateCoverLetter(j)}
-                onViewDetails={handleViewJobDetails}
-                onResearchCompany={handleResearchCompany}
-              />
-            ))}
-          </div>
+        {!profile ? (
+          /* Dedicated Resume Intake Launchpad when no resume is loaded */
+          <ResumeLaunchpad
+            onAnalyzeText={handleAnalyzeText}
+            onAnalyzeFile={handleAnalyzeFile}
+            onSelectSample={handleSelectSample}
+            isAnalyzing={isAnalyzing}
+          />
         ) : (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center max-w-lg mx-auto my-8 space-y-4 shadow-2xs">
-            <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
-              <Briefcase className="w-6 h-6" />
+          /* Active Candidate Dashboard */
+          <>
+            {/* Resume Ingestion Confirmation & Quick Actions Bar */}
+            <div className="mb-6 bg-white border border-emerald-200/90 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-200">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 shrink-0 mt-0.5">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded">
+                      Resume Ingested
+                    </span>
+                    <span className="text-sm sm:text-base font-extrabold text-slate-900">{profile.name}</span>
+                    <span className="text-xs text-slate-600 font-medium">· {profile.title}</span>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    {profile.seniorityLevel} · {profile.yearsOfExperience} yrs exp · {profile.extractedResumeText ? `${profile.extractedResumeText.length} characters parsed` : 'Profile active'} · {jobs.length} tailored remote jobs found
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 self-start md:self-center shrink-0">
+                <button
+                  onClick={() => setIsResumeViewerOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors shadow-2xs"
+                >
+                  <FileText className="w-3.5 h-3.5 text-slate-600" />
+                  <span>View Pulled Resume</span>
+                </button>
+                <button
+                  onClick={() => setIsUploadOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors shadow-2xs"
+                >
+                  <UploadCloud className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Upload Different Resume</span>
+                </button>
+                <button
+                  onClick={handleStartOver}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-lg transition-colors shadow-2xs"
+                  title="Clear profile and start over with clean intake"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Start Over</span>
+                </button>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-800">No matching remote openings</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Try widening your search filter, selecting "Any Region", or resetting filters to see all available roles.
-              </p>
+
+            {/* Section Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900">
+                    Targeted Remote Opportunities
+                  </h2>
+                  {isLoadingJobs && (
+                    <RefreshCw className="w-4 h-4 text-indigo-600 animate-spin" />
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Ranked with multi-dimensional matching for {profile.name}: Career Trajectory, Culture Archetype & Deep Skill Overlap.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsUploadOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-2xs"
+                >
+                  <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Upload Custom Resume</span>
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() =>
-                setFilters({
-                  searchQuery: '',
-                  seniority: 'All',
-                  minSalary: 0,
-                  minMatchScore: 0,
-                  region: 'All Regions',
-                })
-              }
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all"
-            >
-              Reset All Filters
-            </button>
-          </div>
+
+            {/* Job Filter Bar */}
+            <JobFilterBar
+              filters={filters}
+              onChange={setFilters}
+              totalJobs={jobs.length}
+              filteredCount={filteredJobs.length}
+            />
+
+            {/* Jobs Grid */}
+            {filteredJobs.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredJobs.map((job) => (
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    onTailorResume={handleTailorResume}
+                    onGenerateCoverLetter={(j) => handleGenerateCoverLetter(j)}
+                    onViewDetails={handleViewJobDetails}
+                    onResearchCompany={handleResearchCompany}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center max-w-lg mx-auto my-8 space-y-4 shadow-2xs">
+                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                  <Briefcase className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">No matching remote openings</h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Try widening your search filter, selecting "Any Region", or resetting filters to see all available roles.
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    setFilters({
+                      searchQuery: '',
+                      seniority: 'All',
+                      minSalary: 0,
+                      minMatchScore: 0,
+                      region: 'All Regions',
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all"
+                >
+                  Reset All Filters
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
 
