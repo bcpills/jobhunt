@@ -157,7 +157,7 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                 Tailoring Resume to {job.company}'s Requirements...
               </h3>
               <p className="text-xs text-slate-500 max-w-sm">
-                Aligning work experience bullets with the Google XYZ formula, injecting target ATS keywords, and optimizing executive summary.
+                Aligning work experience bullets with target responsibilities, integrating key technical competencies, and sharpening achievement metrics.
               </p>
             </div>
           </div>
@@ -309,7 +309,7 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                   {/* Experience Bullet Comparisons */}
                   <div className="space-y-4">
                     <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Elevated Work Experience (Google XYZ Formula)
+                      Elevated Work Experience & Key Achievements
                     </h4>
 
                     {(tailoredResume.tailoredExperience || []).map((exp, expIdx) => (
@@ -332,7 +332,7 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                               )}
                               <div className="text-slate-800 pl-3 border-l-2 border-indigo-600 bg-indigo-50/20 py-1.5 rounded-r">
                                 <span className="text-[10px] uppercase font-bold text-indigo-700 block flex items-center gap-1">
-                                  <Sparkles className="w-2.5 h-2.5" /> Tailored (High-Impact XYZ)
+                                  <Sparkles className="w-2.5 h-2.5" /> Tailored Achievement
                                 </span>
                                 <span className="font-medium text-slate-900">{b.tailored}</span>
                                 {b.rationale && (

@@ -21,6 +21,14 @@ export interface InferredCulturePreferences {
   keyMotivators: string[];
 }
 
+export interface WorkExperienceItem {
+  company: string;
+  role: string;
+  dates: string;
+  location?: string;
+  bullets: string[];
+}
+
 export interface CandidateProfile {
   name: string;
   title: string;
@@ -41,6 +49,8 @@ export interface CandidateProfile {
   extractedResumeText: string;
   careerTrajectory?: CareerTrajectoryProfile;
   inferredCulturePreferences?: InferredCulturePreferences;
+  workExperience?: WorkExperienceItem[];
+  educationHistory?: string[];
 }
 
 export interface SkillOverlapDetails {

@@ -646,7 +646,7 @@ export default function App() {
             <span>·</span>
             <span>Achievable Compensation Bands</span>
             <span>·</span>
-            <span>Google XYZ Formula</span>
+            <span>Impact-Driven ATS Tailoring</span>
           </div>
         </div>
       </footer>

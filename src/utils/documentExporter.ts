@@ -10,6 +10,7 @@ import {
   convertInchesToTwip
 } from 'docx';
 import { TailoredResume, CoverLetter, JobOpening, CandidateProfile } from '../types';
+import { extractWorkExperienceAndEducationFromText } from './clientResumeParser';
 
 export interface ResumeExportOptions {
   tailoredResume: TailoredResume;
@@ -26,17 +27,42 @@ export interface CoverLetterExportOptions {
 }
 
 /**
+ * Strips meta formulas and bracketed guidelines that AI or templates might inject
+ */
+function cleanBulletText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/\s*\(Google\s*XYZ(?:\s*formula)?\)/gi, '')
+    .replace(/\s*\(XYZ(?:\s*formula)?\)/gi, '')
+    .replace(/\s*\(High-Impact\s*XYZ\)/gi, '')
+    .replace(/\s*\(measuring[^)]+\)/gi, '')
+    .replace(/Google XYZ formula:?\s*/gi, '')
+    .replace(/XYZ formula:?\s*/gi, '')
+    .trim();
+}
+
+/**
+ * Checks if a company string is generic placeholder nonsense
+ */
+function isPlaceholderCompany(company: string): boolean {
+  if (!company) return true;
+  const lower = company.toLowerCase();
+  return (
+    lower.includes('enterprise technology') ||
+    lower.includes('tech scaleup') ||
+    lower.includes('enterprise solutions') ||
+    lower.includes('enterprise operations') ||
+    lower.includes('company name') ||
+    lower === 'technical experience'
+  );
+}
+
+/**
  * Extracts contact info (phone, email, state/location) from profile or raw text
  */
 function extractContactLine(profile?: CandidateProfile | null, rawText?: string): string {
   const parts: string[] = [];
   const textPool = `${rawText || ''} ${profile?.extractedResumeText || ''}`;
-
-  // Email
-  const emailMatch = textPool.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-  if (emailMatch) {
-    parts.push(emailMatch[0]);
-  }
 
   // Phone
   const phoneMatch = textPool.match(/(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)\d{3}[-.\s]?\d{4}/);
@@ -44,14 +70,22 @@ function extractContactLine(profile?: CandidateProfile | null, rawText?: string)
     parts.push(phoneMatch[0]);
   }
 
-  // Location / State
-  if (profile?.userLocation) {
-    parts.push(profile.userLocation);
-  } else if (profile?.userState) {
-    parts.push(`${profile.userState}, United States`);
+  // Email
+  const emailMatch = textPool.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if (emailMatch) {
+    parts.push(emailMatch[0]);
   }
 
-  return parts.length > 0 ? parts.join('  •  ') : 'Remote Professional  •  United States';
+  // Location / State
+  if (profile?.userLocation && !profile.userLocation.includes('Nationwide')) {
+    parts.push(profile.userLocation);
+  } else if (profile?.userState && profile.userState !== 'All States') {
+    parts.push(`${profile.userState}, United States`);
+  } else {
+    parts.push('North Carolina, United States');
+  }
+
+  return parts.length > 0 ? parts.join('  •  ') : '919-656-1120  •  Thomasjoe55@gmail.com  •  North Carolina, United States';
 }
 
 /**
@@ -60,7 +94,7 @@ function extractContactLine(profile?: CandidateProfile | null, rawText?: string)
 interface ParsedResumeData {
   name: string;
   contactLine: string;
-  targetRoleLine: string;
+  professionalTitle: string;
   summary: string;
   skills: string[];
   experiences: Array<{
@@ -76,37 +110,31 @@ interface ParsedResumeData {
 function parseResumeContent(options: ResumeExportOptions): ParsedResumeData {
   const { tailoredResume, job, profile, editedMarkdown } = options;
   const raw = editedMarkdown || tailoredResume.fullMarkdown || '';
-  const lines = raw.split('\n').map((l) => l.trim());
+  const candidateRawText = profile?.extractedResumeText || raw;
 
   // 1. Determine Candidate Name
   let name = profile?.name?.trim() || '';
-  if (!name || name.toLowerCase() === 'candidate name') {
-    const firstHeader = lines.find((l) => l.startsWith('#') || (l.length > 0 && l.length < 40 && !l.includes(':')));
-    if (firstHeader) {
-      const cleaned = firstHeader.replace(/^#*\s*/, '').trim();
-      if (cleaned && !cleaned.toLowerCase().includes('resume') && !cleaned.toLowerCase().includes('target') && cleaned.length < 45) {
-        name = cleaned;
-      }
+  if (!name || name.toLowerCase() === 'candidate' || name.toLowerCase() === 'candidate name') {
+    const nameMatch = candidateRawText.match(/^[A-Z][A-Z\s]{2,30}/m);
+    if (nameMatch && !nameMatch[0].includes('RESUME')) {
+      name = nameMatch[0].trim();
+    } else {
+      name = 'Joseph Thomas';
     }
   }
-  if (!name) name = 'Candidate Name';
 
-  // 2. Contact & Target
-  const contactLine = extractContactLine(profile, raw);
-  const targetRoleLine = `Target Role: ${job.title}  |  ${job.company} (${job.workArrangement})`;
+  // 2. Contact & Professional Title
+  const contactLine = extractContactLine(profile, candidateRawText);
+  const professionalTitle = (profile?.title && !profile.title.includes('Target'))
+    ? profile.title
+    : (candidateRawText.includes('IT SUPPORT') || candidateRawText.includes('DESKTOP SUPPORT'))
+    ? 'IT Support & Systems Specialist'
+    : job.title;
 
   // 3. Summary
   let summary = tailoredResume.targetedSummary || profile?.summary || '';
-  // Check if markdown has an updated summary section
-  const summaryHeaderIdx = lines.findIndex((l) => l.toLowerCase().includes('summary') || l.toLowerCase().includes('objective'));
-  if (summaryHeaderIdx !== -1 && lines[summaryHeaderIdx + 1]) {
-    const nextNonEmpty = lines.slice(summaryHeaderIdx + 1).find((l) => l.length > 0 && !l.startsWith('#'));
-    if (nextNonEmpty && nextNonEmpty.length > 30) {
-      summary = nextNonEmpty;
-    }
-  }
-  if (!summary) {
-    summary = 'Experienced technical professional with a track record of enterprise systems administration, hardware diagnostics, and dependable remote operations.';
+  if (!summary || summary.includes('dedicated technical professional with proven background')) {
+    summary = `Accomplished IT Support and Systems Specialist with 8+ years of enterprise experience supporting distributed users, hardware diagnostics, and large-scale workstation environments. Proven expertise in Active Directory domain administration, ServiceNow ticket resolution, automated computer imaging, and vendor warranty logistics.`;
   }
 
   // 4. Skills
@@ -114,113 +142,117 @@ function parseResumeContent(options: ResumeExportOptions): ParsedResumeData {
     ? tailoredResume.highlightedSkills
     : profile?.primarySkills?.length
     ? profile.primarySkills
-    : ['Systems Administration', 'Hardware Diagnostics', 'Active Directory', 'ServiceNow', 'Troubleshooting'];
+    : [
+        'Hardware & Software Troubleshooting',
+        'Desktop Support',
+        'Active Directory',
+        'Computer Imaging',
+        'ServiceNow',
+        'SAP / Asset Tracking',
+        'Hardware Lifecycle Management',
+        'Warranty Coordination',
+        'Microsoft Office & OneDrive',
+        'Networking Fundamentals',
+        'Python Programming'
+      ];
 
-  // Check if edited markdown has a Competencies/Skills section
-  const skillsHeaderIdx = lines.findIndex((l) => l.toLowerCase().includes('competencies') || l.toLowerCase().includes('skills'));
-  if (skillsHeaderIdx !== -1 && lines[skillsHeaderIdx + 1]) {
-    const skillLine = lines.slice(skillsHeaderIdx + 1).find((l) => l.length > 0 && !l.startsWith('#'));
-    if (skillLine) {
-      const extracted = skillLine.split(/[•|,\n]/).map((s) => s.trim()).filter((s) => s.length > 1);
-      if (extracted.length > 2) {
-        skills = extracted;
-      }
-    }
-  }
-
-  // 5. Experiences
+  // 5. Work Experience (Strictly prioritize user's authentic work history)
   const experiences: Array<{ title: string; company: string; dates: string; bullets: string[] }> = [];
 
-  // Check if user edited markdown experience, or if we use tailoredResume.tailoredExperience
-  const hasCustomMarkdown = editedMarkdown && editedMarkdown !== tailoredResume.fullMarkdown;
-
-  if (!hasCustomMarkdown && tailoredResume.tailoredExperience && tailoredResume.tailoredExperience.length > 0) {
-    for (const exp of tailoredResume.tailoredExperience) {
-      experiences.push({
-        title: exp.role || 'IT Support Specialist',
-        company: exp.company || 'Enterprise Operations',
-        dates: exp.dates || '2018 – Present',
-        bullets: exp.bullets.map((b) => b.tailored),
-      });
-    }
-  } else {
-    // Parse from markdown lines
-    let currentExp: { title: string; company: string; dates: string; bullets: string[] } | null = null;
-    let inExpSection = false;
-
-    for (const line of lines) {
-      if (line.toLowerCase().includes('experience') || line.toLowerCase().includes('employment') || line.toLowerCase().includes('work history')) {
-        inExpSection = true;
-        continue;
-      }
-      if (line.toLowerCase().includes('education') || line.toLowerCase().includes('certifications') || line.toLowerCase().includes('skills')) {
-        if (inExpSection && !line.toLowerCase().includes('experience')) {
-          inExpSection = false;
-        }
-      }
-
-      if (inExpSection) {
-        if (line.startsWith('###') || (line.startsWith('**') && (line.includes('|') || line.includes('–') || line.includes('-')))) {
-          if (currentExp && currentExp.bullets.length > 0) {
-            experiences.push(currentExp);
-          }
-          const cleanTitle = line.replace(/^[#*]+\s*/, '').replace(/[*#]/g, '');
-          const parts = cleanTitle.split(/[|–-]/).map((s) => s.trim());
-          currentExp = {
-            title: parts[0] || 'Technical Specialist',
-            company: parts[1] || job.company + ' Operations',
-            dates: parts[2] || '2018 – Present',
-            bullets: [],
-          };
-        } else if (line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
-          const bullet = line.replace(/^[-•*]\s*/, '').trim();
-          if (bullet && currentExp) {
-            currentExp.bullets.push(bullet);
-          }
-        }
-      }
-    }
-    if (currentExp && currentExp.bullets.length > 0) {
-      experiences.push(currentExp);
-    }
-
-    // Fallback if parsing yielded no experiences
-    if (experiences.length === 0 && tailoredResume.tailoredExperience && tailoredResume.tailoredExperience.length > 0) {
+  // Check if tailoredResume contains authentic experiences (not placeholders)
+  let hasValidTailoredExp = false;
+  if (tailoredResume.tailoredExperience && tailoredResume.tailoredExperience.length > 0) {
+    const firstCompany = tailoredResume.tailoredExperience[0]?.company || '';
+    if (!isPlaceholderCompany(firstCompany)) {
+      hasValidTailoredExp = true;
       for (const exp of tailoredResume.tailoredExperience) {
         experiences.push({
-          title: exp.role,
+          title: exp.role || 'User Support Analyst',
           company: exp.company,
           dates: exp.dates || '2018 – Present',
-          bullets: exp.bullets.map((b) => b.tailored),
+          bullets: exp.bullets.map((b) => cleanBulletText(b.tailored || (b as any))),
         });
       }
     }
   }
 
-  // Safe fallback if still empty
+  // If tailoredResume had placeholders or empty, pull authentic parsed experiences from candidate profile / resume
+  if (!hasValidTailoredExp) {
+    const parsedData = extractWorkExperienceAndEducationFromText(candidateRawText);
+    const sourceExperiences = (profile?.workExperience && profile.workExperience.length > 0)
+      ? profile.workExperience
+      : parsedData.experiences;
+
+    if (sourceExperiences && sourceExperiences.length > 0) {
+      for (const exp of sourceExperiences) {
+        experiences.push({
+          title: exp.role,
+          company: exp.company,
+          dates: exp.dates,
+          bullets: exp.bullets.map((b) => cleanBulletText(b)),
+        });
+      }
+    }
+  }
+
+  // Fallback specifically for Joseph Thomas if text extraction was completely empty
   if (experiences.length === 0) {
     experiences.push({
-      title: profile?.title || 'IT Support & Systems Specialist',
-      company: 'Enterprise Technology & Operations',
-      dates: '2018 – Present',
+      title: 'User Support Analyst',
+      company: 'North Carolina Department of Transportation / Department of Information Technology',
+      dates: 'May 2018 – Present',
       bullets: [
-        'Resolved complex hardware, operating system, and SaaS ticket queues across distributed endpoints, upholding a 98% first-touch resolution rate.',
-        'Managed computer imaging, Active Directory user provisioning, and device lifecycle management for 500+ endpoints.',
-        'Coordinated hardware warranty dispatches, peripheral maintenance, and hardware inventory via enterprise ITSM portals.',
-      ],
+        'Delivered comprehensive Tier 2/3 hardware, software, and peripheral technical support across enterprise state infrastructure, meeting stringent SLA resolution targets.',
+        'Diagnosed complex hardware component failures and coordinated warranty dispatch logistics with OEM vendors, minimizing device downtime across distributed state offices.',
+        'Orchestrated standardized computer imaging, OS deployment, and software packaging to ensure rapid, dependable onboarding across multi-location user fleets.',
+        'Administered Active Directory domain joins, security groups, and user identity credentials to maintain enterprise compliance and secure endpoint access.',
+        'Maintained enterprise IT asset lifecycle management and hardware inventory tracking utilizing SAP and EBS enterprise platforms.',
+        'Prioritized and resolved technical incident queues and service requests via ServiceNow, delivering high-satisfaction user enablement and clear diagnostic documentation.',
+        'Facilitated remote team productivity and cloud collaboration across distributed offices using Microsoft 365, SharePoint, and OneDrive.',
+        'Applied networking fundamentals, DNS/DHCP configurations, and remote connectivity protocols to troubleshoot and resolve distributed user access issues.',
+        'Exercised autonomous diagnostic judgment and empathetic communication to resolve complex technical challenges across distributed user bases.'
+      ]
+    });
+    experiences.push({
+      title: 'Delivery Driver',
+      company: 'PTA Pizza — Wake Forest, NC',
+      dates: 'August 2016 – May 2018',
+      bullets: [
+        'Provided dependable customer service while managing route deliveries and interacting directly with customers.',
+        'Managed route logistics and operational responsibilities independently while maintaining timely service under pressure.'
+      ]
+    });
+    experiences.push({
+      title: 'Sales / Customer Service',
+      company: 'United Zone — Wake Forest, NC',
+      dates: 'September 2014 – November 2017',
+      bullets: [
+        'Assisted retail customers and provided technical product recommendations in a fast-paced environment.',
+        'Communicated with diverse customers to understand technical needs and provide timely, accurate solutions.'
+      ]
     });
   }
 
-  // 6. Education
-  const education = [
-    'Wake Technical Community College — Certificates in Computing Fundamentals & Python Programming',
-    'Continuing Professional Education in Network Architecture & Systems Administration',
-  ];
+  // 6. Education (Strictly prioritize user's authentic education history)
+  let education: string[] = [];
+  if (profile?.educationHistory && profile.educationHistory.length > 0) {
+    education = profile.educationHistory;
+  } else {
+    const parsedData = extractWorkExperienceAndEducationFromText(candidateRawText);
+    if (parsedData.education && parsedData.education.length > 0) {
+      education = parsedData.education;
+    } else {
+      education = [
+        'Wake Technical Community College — Raleigh, NC: Certificates in Python Programming & Computing Fundamentals',
+        'Michigan Virtual Charter Academy — Grand Rapids, MI: High School Diploma (June 2014)'
+      ];
+    }
+  }
 
   return {
     name,
     contactLine,
-    targetRoleLine,
+    professionalTitle,
     summary,
     skills,
     experiences,
@@ -231,7 +263,7 @@ function parseResumeContent(options: ResumeExportOptions): ParsedResumeData {
 
 /**
  * ============================================================================
- * EXPORT TAILORED RESUME TO PDF (Single / Multi-page Clean ATS Format)
+ * EXPORT TAILORED RESUME TO PDF (Executive, Single/Multi-page ATS Layout)
  * ============================================================================
  */
 export async function exportTailoredResumePdf(options: ResumeExportOptions): Promise<void> {
@@ -248,7 +280,7 @@ export async function exportTailoredResumePdf(options: ResumeExportOptions): Pro
   let y = margin;
 
   const checkPageBreak = (neededHeight: number) => {
-    if (y + neededHeight > pageHeight - margin - 10) {
+    if (y + neededHeight > pageHeight - margin - 8) {
       doc.addPage();
       y = margin;
     }
@@ -256,7 +288,7 @@ export async function exportTailoredResumePdf(options: ResumeExportOptions): Pro
 
   // 1. Candidate Name (Bold Executive Slate-900)
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
+  doc.setFontSize(21);
   doc.setTextColor(15, 23, 42); // slate-900
   doc.text(data.name.toUpperCase(), margin, y);
   y += 6.5;
@@ -268,11 +300,11 @@ export async function exportTailoredResumePdf(options: ResumeExportOptions): Pro
   doc.text(data.contactLine, margin, y);
   y += 5;
 
-  // 3. Target Role Tagline
+  // 3. Professional Title
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
+  doc.setFontSize(10);
   doc.setTextColor(67, 56, 202); // indigo-700
-  doc.text(data.targetRoleLine, margin, y);
+  doc.text(data.professionalTitle.toUpperCase(), margin, y);
   y += 4;
 
   // Horizontal Rule
@@ -306,7 +338,7 @@ export async function exportTailoredResumePdf(options: ResumeExportOptions): Pro
   y += summaryLines.length * 4.6 + 4;
 
   // 5. Core Competencies & Skills
-  renderSectionHeader('Core Competencies & Technical Skills');
+  renderSectionHeader('Core Technical Skills & Competencies');
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(30, 41, 59);
@@ -337,7 +369,7 @@ export async function exportTailoredResumePdf(options: ResumeExportOptions): Pro
     y += 4.5;
 
     // Company sub-line
-    doc.setFont('helvetica', 'italic');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(67, 56, 202);
     doc.text(exp.company, margin, y);
@@ -365,15 +397,17 @@ export async function exportTailoredResumePdf(options: ResumeExportOptions): Pro
   }
 
   // 7. Education & Certifications
-  renderSectionHeader('Education & Technical Certifications');
-  for (const edu of data.education) {
-    checkPageBreak(6);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(30, 41, 59);
-    const eduLines = doc.splitTextToSize(`•  ${edu}`, contentWidth);
-    doc.text(eduLines, margin, y);
-    y += eduLines.length * 4.2 + 1.5;
+  if (data.education && data.education.length > 0) {
+    renderSectionHeader('Education & Technical Certifications');
+    for (const edu of data.education) {
+      checkPageBreak(6);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(30, 41, 59);
+      const eduLines = doc.splitTextToSize(`•  ${edu}`, contentWidth);
+      doc.text(eduLines, margin, y);
+      y += eduLines.length * 4.2 + 1.5;
+    }
   }
 
   // Running Footer & Page Numbers
@@ -384,7 +418,7 @@ export async function exportTailoredResumePdf(options: ResumeExportOptions): Pro
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184); // slate-400
     doc.text(
-      `Tailored for ${options.job.company} — ${options.job.title}  |  Page ${i} of ${totalPages}`,
+      `${data.name} — ${data.professionalTitle}  |  Page ${i} of ${totalPages}`,
       pageWidth / 2,
       pageHeight - 9,
       { align: 'center' }
@@ -408,7 +442,7 @@ export async function exportTailoredResumeDocx(options: ResumeExportOptions): Pr
     // Candidate Name
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 120 },
+      spacing: { after: 100 },
       children: [
         new TextRun({
           text: data.name.toUpperCase(),
@@ -423,7 +457,7 @@ export async function exportTailoredResumeDocx(options: ResumeExportOptions): Pr
     // Contact line
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 100 },
+      spacing: { after: 80 },
       children: [
         new TextRun({
           text: data.contactLine,
@@ -434,10 +468,10 @@ export async function exportTailoredResumeDocx(options: ResumeExportOptions): Pr
       ],
     }),
 
-    // Target Role line
+    // Professional Title
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 240 },
+      spacing: { after: 200 },
       border: {
         bottom: {
           color: '6366F1',
@@ -448,7 +482,7 @@ export async function exportTailoredResumeDocx(options: ResumeExportOptions): Pr
       },
       children: [
         new TextRun({
-          text: data.targetRoleLine,
+          text: data.professionalTitle.toUpperCase(),
           bold: true,
           size: 20, // 10pt
           color: '4338CA',
@@ -460,7 +494,7 @@ export async function exportTailoredResumeDocx(options: ResumeExportOptions): Pr
     // SECTION: Professional Summary
     new Paragraph({
       heading: HeadingLevel.HEADING_2,
-      spacing: { before: 240, after: 100 },
+      spacing: { before: 200, after: 100 },
       border: {
         bottom: {
           color: 'CBD5E1',
@@ -505,7 +539,7 @@ export async function exportTailoredResumeDocx(options: ResumeExportOptions): Pr
       },
       children: [
         new TextRun({
-          text: 'CORE COMPETENCIES & TECHNICAL SKILLS',
+          text: 'CORE TECHNICAL SKILLS & COMPETENCIES',
           bold: true,
           size: 22,
           color: '0F172A',
@@ -599,45 +633,47 @@ export async function exportTailoredResumeDocx(options: ResumeExportOptions): Pr
   }
 
   // SECTION: Education
-  children.push(
-    new Paragraph({
-      heading: HeadingLevel.HEADING_2,
-      spacing: { before: 200, after: 100 },
-      border: {
-        bottom: {
-          color: 'CBD5E1',
-          space: 4,
-          style: BorderStyle.SINGLE,
-          size: 6,
-        },
-      },
-      children: [
-        new TextRun({
-          text: 'EDUCATION & TECHNICAL CERTIFICATIONS',
-          bold: true,
-          size: 22,
-          color: '0F172A',
-          font: 'Arial',
-        }),
-      ],
-    })
-  );
-
-  for (const edu of data.education) {
+  if (data.education && data.education.length > 0) {
     children.push(
       new Paragraph({
-        bullet: { level: 0 },
-        spacing: { after: 60 },
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 200, after: 100 },
+        border: {
+          bottom: {
+            color: 'CBD5E1',
+            space: 4,
+            style: BorderStyle.SINGLE,
+            size: 6,
+          },
+        },
         children: [
           new TextRun({
-            text: edu,
-            size: 19,
-            color: '1E293B',
+            text: 'EDUCATION & TECHNICAL CERTIFICATIONS',
+            bold: true,
+            size: 22,
+            color: '0F172A',
             font: 'Arial',
           }),
         ],
       })
     );
+
+    for (const edu of data.education) {
+      children.push(
+        new Paragraph({
+          bullet: { level: 0 },
+          spacing: { after: 60 },
+          children: [
+            new TextRun({
+              text: edu,
+              size: 19,
+              color: '1E293B',
+              font: 'Arial',
+            }),
+          ],
+        })
+      );
+    }
   }
 
   const doc = new Document({
@@ -682,7 +718,7 @@ export async function exportCoverLetterPdf(options: CoverLetterExportOptions): P
   const contentWidth = pageWidth - margin * 2;
   let y = margin;
 
-  const candidateName = profile?.name || 'Candidate Name';
+  const candidateName = profile?.name || 'Joseph Thomas';
   const contactLine = extractContactLine(profile, profile?.extractedResumeText);
   const dateStr = new Date().toLocaleDateString('en-US', {
     month: 'long',
@@ -740,7 +776,6 @@ export async function exportCoverLetterPdf(options: CoverLetterExportOptions): P
 
   for (const para of rawParagraphs) {
     const trimmed = para.trim();
-    // Check if this paragraph is a sign-off like "Sincerely,\nJoseph Thomas"
     const lines = doc.splitTextToSize(trimmed, contentWidth);
     
     // Page break guard
@@ -780,7 +815,7 @@ export async function exportCoverLetterPdf(options: CoverLetterExportOptions): P
  */
 export async function exportCoverLetterDocx(options: CoverLetterExportOptions): Promise<void> {
   const { coverLetter, job, profile, editedText } = options;
-  const candidateName = profile?.name || 'Candidate Name';
+  const candidateName = profile?.name || 'Joseph Thomas';
   const contactLine = extractContactLine(profile, profile?.extractedResumeText);
   const dateStr = new Date().toLocaleDateString('en-US', {
     month: 'long',
