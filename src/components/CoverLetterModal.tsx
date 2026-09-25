@@ -1,6 +1,21 @@
 import React, { useState } from 'react';
 import { CoverLetter, JobOpening, CandidateProfile } from '../types';
-import { X, FileText, Copy, Check, Download, RefreshCw, Sparkles, Printer, Sliders, AlertCircle } from 'lucide-react';
+import {
+  X,
+  FileText,
+  Copy,
+  Check,
+  Download,
+  RefreshCw,
+  Sparkles,
+  Printer,
+  Sliders,
+  AlertCircle,
+  FileDown,
+  Loader2,
+  FileCheck2
+} from 'lucide-react';
+import { exportCoverLetterPdf, exportCoverLetterDocx } from '../utils/documentExporter';
 
 interface CoverLetterModalProps {
   isOpen: boolean;
@@ -27,6 +42,9 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
   const [showPreferences, setShowPreferences] = useState(false);
   const [copied, setCopied] = useState(false);
   const [editableText, setEditableText] = useState('');
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportingDocx, setIsExportingDocx] = useState(false);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (coverLetter) {
@@ -43,7 +61,49 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleDownload = () => {
+  const handleExportPdf = async () => {
+    if (!coverLetter || !job) return;
+    setIsExportingPdf(true);
+    try {
+      await exportCoverLetterPdf({
+        coverLetter,
+        job,
+        profile,
+        editedText: editableText,
+      });
+      setExportNotice('✓ Nicely formatted Cover Letter PDF exported!');
+      setTimeout(() => setExportNotice(null), 3500);
+    } catch (err) {
+      console.error('PDF export error:', err);
+      setExportNotice('Failed to generate PDF. Please try again.');
+      setTimeout(() => setExportNotice(null), 3500);
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handleExportDocx = async () => {
+    if (!coverLetter || !job) return;
+    setIsExportingDocx(true);
+    try {
+      await exportCoverLetterDocx({
+        coverLetter,
+        job,
+        profile,
+        editedText: editableText,
+      });
+      setExportNotice('✓ Cover Letter Word (.docx) exported!');
+      setTimeout(() => setExportNotice(null), 3500);
+    } catch (err) {
+      console.error('DOCX export error:', err);
+      setExportNotice('Failed to generate DOCX. Please try again.');
+      setTimeout(() => setExportNotice(null), 3500);
+    } finally {
+      setIsExportingDocx(false);
+    }
+  };
+
+  const handleDownloadTxt = () => {
     if (!editableText) return;
     const blob = new Blob([editableText], { type: 'text/plain;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -52,6 +112,8 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
     link.download = `Cover_Letter_${job.company.replace(/\s+/g, '_')}_${(profile?.name || 'Candidate').replace(/\s+/g, '_')}.txt`;
     link.click();
     URL.revokeObjectURL(url);
+    setExportNotice('Downloaded plain text (.txt) file');
+    setTimeout(() => setExportNotice(null), 2500);
   };
 
   const handlePrint = () => {
@@ -151,6 +213,22 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
           </div>
         )}
 
+        {/* Notice Toast */}
+        {exportNotice && (
+          <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-2 text-xs font-semibold text-emerald-800 flex items-center justify-between animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <FileCheck2 className="w-4 h-4 text-emerald-600" />
+              <span>{exportNotice}</span>
+            </div>
+            <button
+              onClick={() => setExportNotice(null)}
+              className="text-emerald-600 hover:text-emerald-900 text-xs"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Loading Spinner */}
         {isLoading && (
           <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
@@ -211,7 +289,11 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
             )}
 
             {/* Editable Letter Viewer */}
-            <div className="relative">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>You can edit the letter text directly below before exporting to PDF or Word (.docx).</span>
+                <span>{editableText.length} characters</span>
+              </div>
               <textarea
                 value={editableText}
                 onChange={(e) => setEditableText(e.target.value)}
@@ -223,8 +305,8 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
         )}
 
         {/* Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => onRegenerate({ tone, length, customNotes })}
               disabled={isLoading}
@@ -235,37 +317,73 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
             </button>
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+              title="Print letter preview"
             >
               <Printer className="w-3.5 h-3.5 text-slate-500" />
               <span>Print</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+            {/* Copy Button */}
             <button
               onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-2xs"
             >
               {copied ? (
                 <>
                   <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-emerald-700 font-semibold">Copied to Clipboard</span>
+                  <span className="text-emerald-700 font-semibold">Copied!</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Copy Letter</span>
+                  <span>Copy</span>
                 </>
               )}
             </button>
 
+            {/* Plain text fallback */}
             <button
-              onClick={handleDownload}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors shadow-xs"
+              onClick={handleDownloadTxt}
+              className="inline-flex items-center gap-1 px-2.5 py-2 text-xs font-medium text-slate-500 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-2xs"
+              title="Download raw plain text"
             >
-              <Download className="w-3.5 h-3.5 text-indigo-300" />
-              <span>Download (.txt)</span>
+              <Download className="w-3.5 h-3.5 text-slate-400" />
+              <span>.txt</span>
+            </button>
+
+            {/* PRIMARY 1: Export Word (.docx) */}
+            <button
+              onClick={handleExportDocx}
+              disabled={isExportingDocx || isExportingPdf}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-800 hover:text-slate-950 bg-white border border-blue-300/80 hover:bg-blue-50/50 rounded-lg transition-all shadow-2xs disabled:opacity-50"
+            >
+              {isExportingDocx ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+              ) : (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-700 tracking-wide">
+                  DOCX
+                </span>
+              )}
+              <span>Export Word (.docx)</span>
+            </button>
+
+            {/* PRIMARY 2: Export PDF */}
+            <button
+              onClick={handleExportPdf}
+              disabled={isExportingPdf || isExportingDocx}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all shadow-xs disabled:opacity-50"
+            >
+              {isExportingPdf ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-300" />
+              ) : (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-red-600 text-white tracking-wide">
+                  PDF
+                </span>
+              )}
+              <span>Export Formatted PDF</span>
             </button>
           </div>
         </div>

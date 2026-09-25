@@ -678,6 +678,7 @@ export default function App() {
         onClose={() => setIsTailorModalOpen(false)}
         tailoredResume={tailoredResume}
         job={selectedJob}
+        profile={profile}
         isLoading={isTailoring}
         onRetry={() => selectedJob && handleTailorResume(selectedJob)}
       />
