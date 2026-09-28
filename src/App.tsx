@@ -29,8 +29,7 @@ import { JobDetailModal } from './components/JobDetailModal';
 import { ResumeViewerModal } from './components/ResumeViewerModal';
 import { CompanyResearchModal } from './components/CompanyResearchModal';
 import { ResumeLaunchpad } from './components/ResumeLaunchpad';
-import { NetlifyAuthHelpModal } from './components/NetlifyAuthHelpModal';
-import firebaseConfig from '../firebase-applet-config.json';
+import { AuthModal, AuthMode } from './components/AuthModal';
 import {
   Briefcase,
   RefreshCw,
@@ -42,12 +41,10 @@ import {
   BookmarkCheck,
   Save,
   Check,
-  ShieldAlert,
   HardDrive
 } from 'lucide-react';
 import {
   auth,
-  signInWithGoogle,
   signOutUser,
   onAuthStateChanged,
   saveResumeToAccount,
@@ -55,8 +52,6 @@ import {
   markJobAsApplied,
   unmarkJobAsApplied,
   subscribeToAppliedJobs,
-  checkRedirectAuthResult,
-  diagnoseAuthError,
   saveResumeLocally,
   loadSavedResumeLocally
 } from './services/firebase';
@@ -106,14 +101,9 @@ export default function App() {
     }
   });
 
-  // Netlify Auth Help Modal State
-  const [isNetlifyHelpOpen, setIsNetlifyHelpOpen] = useState(false);
-  const [authErrorDiagnosis, setAuthErrorDiagnosis] = useState<{
-    currentHostname: string;
-    projectId: string;
-    consoleUrl: string;
-    message: string;
-  } | null>(null);
+  // Email / Password Auth Modal State
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<AuthMode>('signin');
 
   // Modal states
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -163,20 +153,6 @@ export default function App() {
       console.warn('Failed to cache applied jobs to localStorage:', e);
     }
   }, [appliedJobsMap]);
-
-  // Check redirect auth result on boot (crucial for Netlify & mobile browsers)
-  useEffect(() => {
-    checkRedirectAuthResult()
-      .then((redirectUser) => {
-        if (redirectUser) {
-          setUser(redirectUser);
-          showToast(`Welcome back, ${redirectUser.displayName || 'Candidate'}!`);
-        }
-      })
-      .catch((err) => {
-        console.warn('Redirect auth check notice:', err);
-      });
-  }, []);
 
   // Check local saved resume on boot if not signed in
   useEffect(() => {
@@ -246,39 +222,13 @@ export default function App() {
     return () => unsubscribe();
   }, [profile]);
 
-  // Sign In with Google (with Netlify domain diagnosis & mobile redirect support)
-  const handleSignInGoogle = async () => {
-    try {
-      const signedInUser = await signInWithGoogle(true);
-      if (signedInUser) {
-        showToast(`Signed in as ${signedInUser.displayName || signedInUser.email}!`);
-        setIsLocalMode(false);
-        
-        // If candidate already has an active resume uploaded, auto-save it
-        if (profile) {
-          await handleSaveResume(signedInUser);
-        }
-      }
-    } catch (err: any) {
-      if (err?.code === 'auth/popup-closed-by-user') {
-        return;
-      }
-
-      console.error('Google Sign In Error:', err);
-      const diagnosis = diagnoseAuthError(err);
-      if (diagnosis) {
-        setAuthErrorDiagnosis(diagnosis);
-        setIsNetlifyHelpOpen(true);
-        setErrorMessage(
-          `Domain "${diagnosis.currentHostname}" needs to be authorized in Firebase Console. Click "Netlify Auth Guide" above or switch to Browser Storage mode.`
-        );
-      } else {
-        setErrorMessage(err.message || 'Failed to sign in with Google.');
-      }
-    }
+  // Open Authentication Modal
+  const handleOpenAuth = (mode: AuthMode = 'signin') => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
   };
 
-  // Enable Browser Storage Mode (for Netlify users who haven't added domain yet)
+  // Enable Browser Storage Mode
   const handleEnableLocalStorageMode = () => {
     setIsLocalMode(true);
     if (profile) {
@@ -291,7 +241,7 @@ export default function App() {
   };
 
   // Sign Out
-  const handleSignOutGoogle = async () => {
+  const handleSignOut = async () => {
     try {
       await signOutUser();
       setIsLocalMode(false);
@@ -302,7 +252,7 @@ export default function App() {
     }
   };
 
-  // Save Resume to Account (Google Firestore OR Local Browser Storage)
+  // Save Resume to Account (Firestore OR Local Browser Storage)
   const handleSaveResume = async (explicitUser?: User) => {
     const activeUser = explicitUser || user;
 
@@ -318,21 +268,16 @@ export default function App() {
       if (activeUser) {
         await saveResumeToAccount(activeUser, profile, textToSave, resumeFileName);
         setResumeSaved(true);
-        showToast('Resume saved securely to your Google Account!');
+        showToast('Resume saved securely to your account!');
       } else {
         // Fallback to local browser storage
         saveResumeLocally(profile, textToSave, resumeFileName);
         setResumeSaved(true);
         setIsLocalMode(true);
-        showToast('Resume saved locally in your browser storage! (Connect Google anytime to sync)');
+        showToast('Resume saved locally in browser storage! (Sign in anytime to sync across devices)');
       }
     } catch (err: any) {
-      console.error('Failed to save resume:', err);
-      const diagnosis = diagnoseAuthError(err);
-      if (diagnosis) {
-        setAuthErrorDiagnosis(diagnosis);
-        setIsNetlifyHelpOpen(true);
-      }
+      console.error('Failed to save resume to account:', err);
       // Save locally so candidate never loses data
       saveResumeLocally(profile, rawResumeText || profile.extractedResumeText || '', resumeFileName);
       setResumeSaved(true);
@@ -812,8 +757,8 @@ export default function App() {
         onStartOver={handleStartOver}
         user={user}
         isLocalMode={isLocalMode}
-        onSignInGoogle={handleSignInGoogle}
-        onSignOutGoogle={handleSignOutGoogle}
+        onOpenAuth={(mode) => handleOpenAuth(mode)}
+        onSignOut={handleSignOut}
         onSaveResume={handleSaveResume}
         isSavingResume={isSavingResume}
         resumeSaved={resumeSaved}
@@ -821,7 +766,6 @@ export default function App() {
         onShowAppliedOnly={() => setFilters((prev) => ({ ...prev, onlyApplied: !prev.onlyApplied }))}
         isDark={isDark}
         onToggleTheme={() => setIsDark(!isDark)}
-        onOpenNetlifyHelp={() => setIsNetlifyHelpOpen(true)}
       />
 
       {/* Candidate Profile Bar with Location, Comp, & Insights */}
@@ -841,7 +785,7 @@ export default function App() {
 
       {/* Main Container - Optimized for Mobile & Desktop Viewports */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
-        {/* Error Alert with Netlify quick-fix shortcut */}
+        {/* Error Alert with quick-fix shortcut */}
         {errorMessage && (
           <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl text-xs text-rose-800 dark:text-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
             <div className="flex items-start gap-2.5">
@@ -853,14 +797,14 @@ export default function App() {
             </div>
             <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
               <button
-                onClick={() => setIsNetlifyHelpOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs shadow-2xs"
+                onClick={() => handleOpenAuth('signin')}
+                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-2xs"
               >
-                Netlify Auth Guide
+                Sign In
               </button>
               <button
                 onClick={handleEnableLocalStorageMode}
-                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-2xs"
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-2xs"
               >
                 Use Browser Storage
               </button>
@@ -926,7 +870,7 @@ export default function App() {
                       ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
                       : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100'
                   }`}
-                  title={user ? 'Save resume to your Google account' : 'Save resume to browser or account'}
+                  title={user ? 'Save resume to your account' : 'Save resume to browser or account'}
                 >
                   {isSavingResume ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -1174,14 +1118,15 @@ export default function App() {
         }}
       />
 
-      {/* Netlify Auth Help Modal */}
-      <NetlifyAuthHelpModal
-        isOpen={isNetlifyHelpOpen}
-        onClose={() => setIsNetlifyHelpOpen(false)}
-        hostname={authErrorDiagnosis?.currentHostname || (typeof window !== 'undefined' ? window.location.hostname : '')}
-        projectId={firebaseConfig.projectId}
-        consoleUrl={authErrorDiagnosis?.consoleUrl || `https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/settings`}
-        onUseLocalStorageMode={handleEnableLocalStorageMode}
+      {/* Email / Password Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode={authModalMode}
+        onSuccess={() => {
+          showToast('Signed in successfully!');
+        }}
+        onContinueGuest={handleEnableLocalStorageMode}
       />
     </div>
   );

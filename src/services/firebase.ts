@@ -1,10 +1,10 @@
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile,
   signOut,
   onAuthStateChanged,
   User
@@ -28,12 +28,6 @@ import { CandidateProfile, AppliedJobRecord, SavedUserResume } from '../types';
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
-
-// Provider for Google Sign In
-export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
 
 // Operation Types for Hardened Error Handling
 export enum OperationType {
@@ -97,79 +91,104 @@ export async function testConnection(): Promise<void> {
 // Execute connection test on module load
 testConnection();
 
-export interface AuthDomainDiagnosis {
-  isUnauthorizedDomain: boolean;
-  currentHostname: string;
-  projectId: string;
-  consoleUrl: string;
-  message: string;
+// Human-friendly error translation for Email/Password Auth
+export interface AuthErrorDetails {
+  code: string;
+  userFriendlyMessage: string;
+  isProviderDisabled?: boolean;
+  providerSettingsUrl?: string;
 }
 
-export function diagnoseAuthError(error: any): AuthDomainDiagnosis | null {
+export function parseAuthError(error: any): AuthErrorDetails {
   const code = error?.code || '';
   const message = error?.message || '';
-  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-  const isUnauthorized = code === 'auth/unauthorized-domain' || message.includes('unauthorized-domain');
 
-  if (isUnauthorized) {
+  if (code === 'auth/operation-not-allowed' || message.includes('operation-not-allowed')) {
     return {
-      isUnauthorizedDomain: true,
-      currentHostname: hostname,
-      projectId: firebaseConfig.projectId,
-      consoleUrl: `https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/settings`,
-      message: `Your Netlify or custom domain "${hostname}" is not yet in the Firebase Authorized Domains list.`
+      code,
+      userFriendlyMessage: 'Email/Password sign-in is not yet enabled in the Firebase Console.',
+      isProviderDisabled: true,
+      providerSettingsUrl: `https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/providers`
     };
   }
 
-  return null;
-}
-
-// Check redirect result on load (important for mobile & Netlify redirects)
-export async function checkRedirectAuthResult(): Promise<User | null> {
-  try {
-    const result = await getRedirectResult(auth);
-    if (result && result.user) {
-      return result.user;
-    }
-  } catch (err: any) {
-    console.warn('Redirect sign-in notice:', err);
-    throw err;
+  if (code === 'auth/email-already-in-use') {
+    return {
+      code,
+      userFriendlyMessage: 'An account with this email address already exists. Please sign in instead.'
+    };
   }
-  return null;
+
+  if (code === 'auth/invalid-email') {
+    return {
+      code,
+      userFriendlyMessage: 'Please enter a valid email address.'
+    };
+  }
+
+  if (code === 'auth/weak-password') {
+    return {
+      code,
+      userFriendlyMessage: 'Password should be at least 6 characters long.'
+    };
+  }
+
+  if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || code === 'auth/user-not-found') {
+    return {
+      code,
+      userFriendlyMessage: 'Invalid email or password. Please check your credentials and try again.'
+    };
+  }
+
+  if (code === 'auth/too-many-requests') {
+    return {
+      code,
+      userFriendlyMessage: 'Access temporarily disabled due to many failed login attempts. Please reset your password or try again later.'
+    };
+  }
+
+  return {
+    code,
+    userFriendlyMessage: message || 'An error occurred during authentication.'
+  };
 }
 
-// Google Authentication with Mobile & Popup-Blocker Fallbacks
-export async function signInWithGoogle(useRedirectFallbackOnMobile = false): Promise<User> {
-  const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
+// 1. Sign Up with Email and Password
+export async function signUpWithEmail(email: string, pass: string, displayName?: string): Promise<User> {
   try {
-    if (useRedirectFallbackOnMobile && isMobile) {
-      // In mobile web contexts where popups are blocked by OS, use redirect
-      await signInWithRedirect(auth, googleProvider);
-      // Returns never as the page unloads, but typed as User
-      return new Promise(() => {}) as unknown as User;
+    const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+    if (displayName && cred.user) {
+      await updateProfile(cred.user, { displayName: displayName.trim() });
     }
-
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
-  } catch (error: any) {
-    // If popup was blocked on mobile or desktop, attempt redirect
-    if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
-      console.warn('Popup blocked by browser, falling back to redirect authentication flow...');
-      try {
-        await signInWithRedirect(auth, googleProvider);
-        return new Promise(() => {}) as unknown as User;
-      } catch (redirectErr) {
-        console.error('Redirect sign-in error:', redirectErr);
-        throw redirectErr;
-      }
-    }
-
-    console.error('Failed to sign in with Google:', error);
+    return cred.user;
+  } catch (error) {
+    console.error('Sign up error:', error);
     throw error;
   }
 }
 
+// 2. Sign In with Email and Password
+export async function signInWithEmail(email: string, pass: string): Promise<User> {
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email.trim(), pass);
+    return cred.user;
+  } catch (error) {
+    console.error('Sign in error:', error);
+    throw error;
+  }
+}
+
+// 3. Password Reset
+export async function resetPassword(email: string): Promise<void> {
+  try {
+    await sendPasswordResetEmail(auth, email.trim());
+  } catch (error) {
+    console.error('Password reset error:', error);
+    throw error;
+  }
+}
+
+// 4. Sign Out
 export async function signOutUser(): Promise<void> {
   try {
     await signOut(auth);
@@ -179,7 +198,7 @@ export async function signOutUser(): Promise<void> {
   }
 }
 
-// Local Storage Fallback for Netlify / Offline Users
+// Local Storage Fallback for Offline / Browser Users
 const LOCAL_STORAGE_SAVED_RESUME_KEY = 'jobhunta_saved_resume_local';
 
 export function saveResumeLocally(
@@ -189,8 +208,8 @@ export function saveResumeLocally(
 ): SavedUserResume {
   const data: SavedUserResume = {
     userId: 'local-guest-user',
-    email: 'local.session@jobhunta.local',
-    displayName: profile.name || 'Local Candidate',
+    email: 'local.candidate@jobhunta.app',
+    displayName: profile.name || 'Candidate',
     photoURL: '',
     fileName: fileName || 'Uploaded_Resume.pdf',
     rawText: rawText || '',
@@ -217,7 +236,7 @@ export function loadSavedResumeLocally(): SavedUserResume | null {
   return null;
 }
 
-// Saved Resume Services
+// Saved Resume Services in Firestore
 export async function saveResumeToAccount(
   user: User,
   profile: CandidateProfile,
@@ -231,7 +250,7 @@ export async function saveResumeToAccount(
   const data: SavedUserResume = {
     userId: user.uid,
     email: user.email || '',
-    displayName: user.displayName || profile.name || '',
+    displayName: user.displayName || profile.name || user.email?.split('@')[0] || '',
     photoURL: user.photoURL || '',
     fileName: fileName || 'Uploaded_Resume.pdf',
     rawText: rawText || '',
@@ -259,7 +278,7 @@ export async function loadSavedResume(userId: string): Promise<SavedUserResume |
   }
 }
 
-// Applied Jobs Services
+// Applied Jobs Services in Firestore
 export async function markJobAsApplied(
   userId: string,
   jobRecord: AppliedJobRecord

@@ -14,8 +14,8 @@ import {
   Sun,
   Menu,
   X,
-  ShieldAlert,
-  HardDrive
+  HardDrive,
+  UserCheck
 } from 'lucide-react';
 import { CandidateProfile } from '../types';
 import { User } from 'firebase/auth';
@@ -29,8 +29,8 @@ interface NavbarProps {
   onStartOver?: () => void;
   user: User | null;
   isLocalMode?: boolean;
-  onSignInGoogle: () => void;
-  onSignOutGoogle: () => void;
+  onOpenAuth: (mode?: 'signin' | 'signup') => void;
+  onSignOut: () => void;
   onSaveResume?: () => void;
   isSavingResume?: boolean;
   resumeSaved?: boolean;
@@ -38,7 +38,6 @@ interface NavbarProps {
   onShowAppliedOnly?: () => void;
   isDark: boolean;
   onToggleTheme: () => void;
-  onOpenNetlifyHelp?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -50,8 +49,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onStartOver,
   user,
   isLocalMode = false,
-  onSignInGoogle,
-  onSignOutGoogle,
+  onOpenAuth,
+  onSignOut,
   onSaveResume,
   isSavingResume = false,
   resumeSaved = false,
@@ -59,9 +58,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onShowAppliedOnly,
   isDark,
   onToggleTheme,
-  onOpenNetlifyHelp,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const userInitial = (user?.displayName || user?.email || 'U').slice(0, 1).toUpperCase();
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
@@ -128,7 +128,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
                       : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100'
                   }`}
-                  title={user ? 'Save current resume to your Google account' : 'Save resume'}
+                  title={user ? 'Save current resume to your account' : 'Save resume'}
                 >
                   {isSavingResume ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -175,20 +175,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </div>
 
-        {/* Right side controls: Theme Toggle, Google Account / Login, Mobile Menu Button */}
+        {/* Right side controls: Theme Toggle, User Account / Login, Mobile Menu Button */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Netlify Help Shortcut Button (if on Netlify or custom host) */}
-          {onOpenNetlifyHelp && (
-            <button
-              onClick={onOpenNetlifyHelp}
-              className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 border border-amber-200 dark:border-amber-900/60 rounded-lg transition-colors"
-              title="Netlify Domain Authorization Instructions"
-            >
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              <span className="hidden xl:inline">Netlify Auth Help</span>
-            </button>
-          )}
-
           {/* Dark Mode Toggle Button */}
           <button
             onClick={onToggleTheme}
@@ -203,33 +191,28 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
-          {/* Account status: Google Account OR Local Storage Mode */}
+          {/* Account status: Authenticated Account OR Guest/Local Storage Mode */}
           {user ? (
             <div className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                {user.photoURL ? (
-                  <img
-                    src={user.photoURL}
-                    alt={user.displayName || 'Google User'}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-300 dark:border-slate-700 object-cover shadow-2xs"
-                  />
-                ) : (
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
-                    {(user.displayName || user.email || 'U').slice(0, 1).toUpperCase()}
-                  </div>
-                )}
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                  {userInitial}
+                </div>
                 <div className="hidden sm:block text-left text-xs leading-tight">
                   <div className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[100px] xl:max-w-[140px]">
                     {user.displayName || user.email?.split('@')[0]}
                   </div>
-                  <div className="text-[10px] text-slate-400 dark:text-slate-500">Google Connected</div>
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 font-medium">
+                    <UserCheck className="w-2.5 h-2.5" />
+                    <span>Signed In</span>
+                  </div>
                 </div>
               </div>
 
               <button
-                onClick={onSignOutGoogle}
+                onClick={onSignOut}
                 className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                title="Sign out of Google"
+                title="Sign out of your account"
               >
                 <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
@@ -238,45 +221,33 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 dark:border-slate-800">
               <div
                 className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300"
-                title="Your resume and applications are saved locally in your browser storage"
+                title="Your resume and applications are saved in your local browser storage"
               >
                 <HardDrive className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span className="hidden sm:inline">Browser Mode</span>
               </div>
               <button
-                onClick={onSignInGoogle}
+                onClick={() => onOpenAuth('signin')}
                 className="px-2 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
               >
-                Connect Google
+                Sign In
               </button>
             </div>
           ) : (
-            <button
-              onClick={onSignInGoogle}
-              className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 border border-slate-300 dark:border-slate-700 rounded-lg shadow-2xs transition-all active:scale-[0.98]"
-              title="Sign in with Google to sync your resume and applications"
-            >
-              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.03h3.88c2.27-2.09 3.66-5.17 3.66-9.12z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.03c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.13C3.27 21.39 7.33 24 12 24z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.28 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.58H1.26C.46 8.17 0 9.99 0 12s.46 3.83 1.26 5.42l4.02-3.13z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.27 2.61 1.26 6.58l4.02 3.13c.95-2.83 3.6-4.96 6.72-4.96z"
-                />
-              </svg>
-              <span className="hidden sm:inline">Sign In with Google</span>
-              <span className="sm:hidden">Sign In</span>
-            </button>
+            <div className="flex items-center gap-1.5 pl-1 sm:pl-2 border-l border-slate-200 dark:border-slate-800">
+              <button
+                onClick={() => onOpenAuth('signin')}
+                className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => onOpenAuth('signup')}
+                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-all active:scale-[0.98]"
+              >
+                <span>Sign Up</span>
+              </button>
+            </div>
           )}
 
           {/* Mobile Menu Hamburger Button */}
@@ -293,6 +264,57 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Mobile Drawer Navigation Menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 space-y-3 animate-in slide-in-from-top-2 duration-150 shadow-lg">
+          {/* User Account Info on Mobile */}
+          {user ? (
+            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                  {userInitial}
+                </div>
+                <div className="text-left text-xs">
+                  <div className="font-semibold text-slate-900 dark:text-white truncate max-w-[180px]">
+                    {user.displayName || user.email}
+                  </div>
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                    <UserCheck className="w-2.5 h-2.5" />
+                    <span>Signed In</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  onSignOut();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 rounded-lg"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+              <button
+                onClick={() => {
+                  onOpenAuth('signin');
+                  setMobileMenuOpen(false);
+                }}
+                className="flex-1 py-2 text-xs font-bold text-center text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 rounded-lg shadow-xs"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => {
+                  onOpenAuth('signup');
+                  setMobileMenuOpen(false);
+                }}
+                className="flex-1 py-2 text-xs font-bold text-center text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs"
+              >
+                Create Account
+              </button>
+            </div>
+          )}
+
           {profile && (
             <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl space-y-2 border border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200">
@@ -366,33 +388,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
-          <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-            {onOpenNetlifyHelp && (
-              <button
-                onClick={() => {
-                  onOpenNetlifyHelp();
-                  setMobileMenuOpen(false);
-                }}
-                className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold"
-              >
-                <ShieldAlert className="w-4 h-4" />
-                <span>Netlify Auth Guide</span>
-              </button>
-            )}
-
-            {profile && onStartOver && (
+          {profile && onStartOver && (
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end text-xs">
               <button
                 onClick={() => {
                   onStartOver();
                   setMobileMenuOpen(false);
                 }}
-                className="flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold ml-auto"
+                className="flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Reset Intake</span>
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </header>
