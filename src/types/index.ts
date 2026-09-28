@@ -235,3 +235,69 @@ export interface JobFilterState {
   region: string;
   sortBy?: 'overallMatch' | 'trajectoryFit' | 'cultureFit' | 'skillOverlap' | 'salaryLowToHigh' | 'salaryHighToLow';
 }
+
+export type ResumeStyleId = 'executive' | 'modern' | 'ivy' | 'minimal' | 'technical';
+
+export interface ResumeStyleDefinition {
+  id: ResumeStyleId;
+  name: string;
+  subtitle: string;
+  tag: string;
+  accentColor: string;
+  badgeBg: string;
+  fontFamily: 'sans' | 'serif' | 'mono';
+  description: string;
+}
+
+export const RESUME_STYLES: ResumeStyleDefinition[] = [
+  {
+    id: 'executive',
+    name: 'Classic Executive',
+    subtitle: 'Authoritative & Boardroom Ready',
+    tag: 'Enterprise & ATS Safe',
+    accentColor: '#4338CA', // Indigo / Deep Navy
+    badgeBg: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300',
+    fontFamily: 'sans',
+    description: 'Traditional centered layout with crisp horizontal dividers and dark slate headers. The standard for enterprise roles.'
+  },
+  {
+    id: 'modern',
+    name: 'Modern Tech',
+    subtitle: 'Silicon Valley & Growth Scaleup',
+    tag: 'High Impact & Clean',
+    accentColor: '#4F46E5', // Indigo vibrant
+    badgeBg: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
+    fontFamily: 'sans',
+    description: 'Left-aligned header with a bold indigo accent bar, rounded skill pill tags, and sleek contemporary typography.'
+  },
+  {
+    id: 'ivy',
+    name: 'Editorial Serif',
+    subtitle: 'Ivy League & Academic Prestige',
+    tag: 'Classic Serif',
+    accentColor: '#1E293B', // Slate charcoal
+    badgeBg: 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300',
+    fontFamily: 'serif',
+    description: 'Timeless Georgia serif typography with small-caps section headings, refined diamond bullet dividers, and editorial elegance.'
+  },
+  {
+    id: 'minimal',
+    name: 'Minimalist Clean',
+    subtitle: 'Nordic & Swiss Grid',
+    tag: 'Ultra Clean',
+    accentColor: '#0F172A', // Slate 900
+    badgeBg: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200',
+    fontFamily: 'sans',
+    description: 'Monochrome precision, generous whitespace, and subtle hairline dividers for distraction-free legibility.'
+  },
+  {
+    id: 'technical',
+    name: 'Technical IC',
+    subtitle: 'Systems Engineering & Cloud IT',
+    tag: 'High Density',
+    accentColor: '#059669', // Emerald
+    badgeBg: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+    fontFamily: 'sans',
+    description: 'Compact high-density layout with emerald metrics accents, structured tech skill categories, and quantified achievement highlights.'
+  }
+];

@@ -29,7 +29,6 @@ import { JobDetailModal } from './components/JobDetailModal';
 import { ResumeViewerModal } from './components/ResumeViewerModal';
 import { CompanyResearchModal } from './components/CompanyResearchModal';
 import { ResumeLaunchpad } from './components/ResumeLaunchpad';
-import { AuthModal, AuthMode } from './components/AuthModal';
 import {
   Briefcase,
   RefreshCw,
@@ -44,18 +43,9 @@ import {
   HardDrive
 } from 'lucide-react';
 import {
-  auth,
-  signOutUser,
-  onAuthStateChanged,
-  saveResumeToAccount,
-  loadSavedResume,
-  markJobAsApplied,
-  unmarkJobAsApplied,
-  subscribeToAppliedJobs,
   saveResumeLocally,
   loadSavedResumeLocally
 } from './services/firebase';
-import { User } from 'firebase/auth';
 
 const STORAGE_APPLIED_KEY = 'jobhunta_applied_jobs';
 
@@ -87,9 +77,7 @@ export default function App() {
     sortBy: 'overallMatch',
   });
 
-  // User Authentication & Persistence State
-  const [user, setUser] = useState<User | null>(null);
-  const [isLocalMode, setIsLocalMode] = useState<boolean>(false);
+  // Persistence State
   const [isSavingResume, setIsSavingResume] = useState(false);
   const [resumeSaved, setResumeSaved] = useState(false);
   const [appliedJobsMap, setAppliedJobsMap] = useState<Record<string, AppliedJobRecord>>(() => {
@@ -100,10 +88,6 @@ export default function App() {
       return {};
     }
   });
-
-  // Email / Password Auth Modal State
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<AuthMode>('signin');
 
   // Modal states
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -154,16 +138,15 @@ export default function App() {
     }
   }, [appliedJobsMap]);
 
-  // Check local saved resume on boot if not signed in
+  // Check local saved resume on boot
   useEffect(() => {
-    if (!user && !profile) {
+    if (!profile) {
       const localSaved = loadSavedResumeLocally();
       if (localSaved && localSaved.profile) {
         setProfile(localSaved.profile);
         setRawResumeText(localSaved.rawText || localSaved.profile.extractedResumeText || '');
         setResumeFileName(localSaved.fileName || 'Saved_Resume.pdf');
         setResumeSaved(true);
-        setIsLocalMode(true);
 
         const effState = localSaved.profile.userState || 'NC';
         setFilters((prev) => ({
@@ -173,89 +156,10 @@ export default function App() {
         fetchJobsForProfile(localSaved.profile, effState);
       }
     }
-  }, [user]);
+  }, []);
 
-  // Firebase Auth listener and automatic resume restore
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        setIsLocalMode(false);
-        // Subscribe to applied jobs in Firestore
-        const unsubApplied = subscribeToAppliedJobs(currentUser.uid, (firestoreApplied) => {
-          setAppliedJobsMap((prev) => {
-            const merged = { ...prev, ...firestoreApplied };
-            return merged;
-          });
-        });
-
-        // If no profile is loaded yet in this session, check if user has a saved resume
-        if (!profile) {
-          try {
-            const savedResume = await loadSavedResume(currentUser.uid);
-            if (savedResume && savedResume.profile) {
-              setProfile(savedResume.profile);
-              setRawResumeText(savedResume.rawText || savedResume.profile.extractedResumeText || '');
-              setResumeFileName(savedResume.fileName || 'Saved_Resume.pdf');
-              setResumeSaved(true);
-
-              const effState = savedResume.profile.userState || 'NC';
-              setFilters((prev) => ({
-                ...prev,
-                userState: effState,
-              }));
-
-              showToast(`Welcome back, ${savedResume.displayName || currentUser.displayName || 'Candidate'}! Restored saved resume.`);
-              fetchJobsForProfile(savedResume.profile, effState);
-            }
-          } catch (err) {
-            console.error('Error restoring saved resume:', err);
-          }
-        }
-
-        return () => {
-          unsubApplied();
-        };
-      }
-    });
-
-    return () => unsubscribe();
-  }, [profile]);
-
-  // Open Authentication Modal
-  const handleOpenAuth = (mode: AuthMode = 'signin') => {
-    setAuthModalMode(mode);
-    setIsAuthModalOpen(true);
-  };
-
-  // Enable Browser Storage Mode
-  const handleEnableLocalStorageMode = () => {
-    setIsLocalMode(true);
-    if (profile) {
-      const textToSave = rawResumeText || profile.extractedResumeText || '';
-      saveResumeLocally(profile, textToSave, resumeFileName);
-      setResumeSaved(true);
-    }
-    showToast('Browser Storage Mode enabled! Resume & applications will persist in this browser.');
-    setErrorMessage(null);
-  };
-
-  // Sign Out
-  const handleSignOut = async () => {
-    try {
-      await signOutUser();
-      setIsLocalMode(false);
-      setResumeSaved(false);
-      showToast('Signed out of your account.');
-    } catch (err: any) {
-      console.error('Sign Out Error:', err);
-    }
-  };
-
-  // Save Resume to Account (Firestore OR Local Browser Storage)
-  const handleSaveResume = async (explicitUser?: User) => {
-    const activeUser = explicitUser || user;
-
+  // Save Resume to Local Browser Storage
+  const handleSaveResume = () => {
     if (!profile) {
       showToast('Upload or ingest a resume first to save it.');
       return;
@@ -264,32 +168,19 @@ export default function App() {
     setIsSavingResume(true);
     try {
       const textToSave = rawResumeText || profile.extractedResumeText || '';
-
-      if (activeUser) {
-        await saveResumeToAccount(activeUser, profile, textToSave, resumeFileName);
-        setResumeSaved(true);
-        showToast('Resume saved securely to your account!');
-      } else {
-        // Fallback to local browser storage
-        saveResumeLocally(profile, textToSave, resumeFileName);
-        setResumeSaved(true);
-        setIsLocalMode(true);
-        showToast('Resume saved locally in browser storage! (Sign in anytime to sync across devices)');
-      }
-    } catch (err: any) {
-      console.error('Failed to save resume to account:', err);
-      // Save locally so candidate never loses data
-      saveResumeLocally(profile, rawResumeText || profile.extractedResumeText || '', resumeFileName);
+      saveResumeLocally(profile, textToSave, resumeFileName);
       setResumeSaved(true);
-      setIsLocalMode(true);
-      showToast('Saved resume to browser storage.');
+      showToast('Resume saved locally in browser storage!');
+    } catch (err: any) {
+      console.error('Failed to save resume locally:', err);
+      showToast('Failed to save resume.');
     } finally {
       setIsSavingResume(false);
     }
   };
 
   // Mark / Unmark Job as Applied
-  const handleToggleApply = async (job: JobOpening) => {
+  const handleToggleApply = (job: JobOpening) => {
     const isCurrentlyApplied = Boolean(appliedJobsMap[job.id]);
     const updatedMap = { ...appliedJobsMap };
 
@@ -297,14 +188,6 @@ export default function App() {
       delete updatedMap[job.id];
       setAppliedJobsMap(updatedMap);
       showToast(`Removed "${job.title}" from applied list.`);
-
-      if (user) {
-        try {
-          await unmarkJobAsApplied(user.uid, job.id);
-        } catch (err) {
-          console.error('Failed to delete applied job from Firestore:', err);
-        }
-      }
     } else {
       const record: AppliedJobRecord = {
         jobId: job.id,
@@ -319,14 +202,6 @@ export default function App() {
       updatedMap[job.id] = record;
       setAppliedJobsMap(updatedMap);
       showToast(`Marked "${job.title}" at ${job.company} as applied! ✓`);
-
-      if (user) {
-        try {
-          await markJobAsApplied(user.uid, record);
-        } catch (err) {
-          console.error('Failed to save applied job to Firestore:', err);
-        }
-      }
     }
   };
 
@@ -755,10 +630,6 @@ export default function App() {
         onRefreshJobs={() => profile && fetchJobsForProfile(profile)}
         isLoadingJobs={isLoadingJobs}
         onStartOver={handleStartOver}
-        user={user}
-        isLocalMode={isLocalMode}
-        onOpenAuth={(mode) => handleOpenAuth(mode)}
-        onSignOut={handleSignOut}
         onSaveResume={handleSaveResume}
         isSavingResume={isSavingResume}
         resumeSaved={resumeSaved}
@@ -776,7 +647,6 @@ export default function App() {
           onStartOver={handleStartOver}
           onUpdateState={handleUpdateProfileState}
           onUpdateSalary={handleUpdateProfileSalary}
-          user={user}
           onSaveResume={handleSaveResume}
           isSavingResume={isSavingResume}
           resumeSaved={resumeSaved}
@@ -785,9 +655,9 @@ export default function App() {
 
       {/* Main Container - Optimized for Mobile & Desktop Viewports */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
-        {/* Error Alert with quick-fix shortcut */}
+        {/* Error Alert with dismiss shortcut */}
         {errorMessage && (
-          <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl text-xs text-rose-800 dark:text-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+          <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl text-xs text-rose-800 dark:text-rose-300 flex items-center justify-between gap-3 animate-in fade-in">
             <div className="flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <div>
@@ -795,26 +665,12 @@ export default function App() {
                 <span>{errorMessage}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-              <button
-                onClick={() => handleOpenAuth('signin')}
-                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-2xs"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={handleEnableLocalStorageMode}
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-2xs"
-              >
-                Use Browser Storage
-              </button>
-              <button
-                onClick={() => setErrorMessage(null)}
-                className="text-rose-500 hover:text-rose-700 dark:text-rose-400 font-semibold px-2 py-1"
-              >
-                Dismiss
-              </button>
-            </div>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="text-rose-500 hover:text-rose-700 dark:text-rose-400 font-semibold px-2 py-1 shrink-0"
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
@@ -870,7 +726,7 @@ export default function App() {
                       ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
                       : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100'
                   }`}
-                  title={user ? 'Save resume to your account' : 'Save resume to browser or account'}
+                  title="Save resume to local browser storage"
                 >
                   {isSavingResume ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -1116,17 +972,6 @@ export default function App() {
           setIsCompanyResearchModalOpen(false);
           handleGenerateCoverLetter(job);
         }}
-      />
-
-      {/* Email / Password Auth Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        initialMode={authModalMode}
-        onSuccess={() => {
-          showToast('Signed in successfully!');
-        }}
-        onContinueGuest={handleEnableLocalStorageMode}
       />
     </div>
   );

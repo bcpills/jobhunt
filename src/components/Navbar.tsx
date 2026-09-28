@@ -7,18 +7,14 @@ import {
   MapPin,
   DollarSign,
   Check,
-  LogOut,
   Save,
   BookmarkCheck,
   Moon,
   Sun,
   Menu,
-  X,
-  HardDrive,
-  UserCheck
+  X
 } from 'lucide-react';
 import { CandidateProfile } from '../types';
-import { User } from 'firebase/auth';
 
 interface NavbarProps {
   profile: CandidateProfile | null;
@@ -27,10 +23,6 @@ interface NavbarProps {
   onRefreshJobs: () => void;
   isLoadingJobs: boolean;
   onStartOver?: () => void;
-  user: User | null;
-  isLocalMode?: boolean;
-  onOpenAuth: (mode?: 'signin' | 'signup') => void;
-  onSignOut: () => void;
   onSaveResume?: () => void;
   isSavingResume?: boolean;
   resumeSaved?: boolean;
@@ -47,10 +39,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRefreshJobs,
   isLoadingJobs,
   onStartOver,
-  user,
-  isLocalMode = false,
-  onOpenAuth,
-  onSignOut,
   onSaveResume,
   isSavingResume = false,
   resumeSaved = false,
@@ -60,8 +48,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleTheme,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const userInitial = (user?.displayName || user?.email || 'U').slice(0, 1).toUpperCase();
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
@@ -128,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
                       : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100'
                   }`}
-                  title={user ? 'Save current resume to your account' : 'Save resume'}
+                  title="Save current resume to local browser storage"
                 >
                   {isSavingResume ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -171,11 +157,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-[0.98] rounded-lg transition-all shadow-2xs"
           >
             <UploadCloud className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-            <span>{profile ? 'Switch Resume' : 'Upload'}</span>
+            <span>{profile ? 'Switch Resume' : 'Upload Resume'}</span>
           </button>
         </div>
 
-        {/* Right side controls: Theme Toggle, User Account / Login, Mobile Menu Button */}
+        {/* Right side controls: Theme Toggle & Mobile Menu Button */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Dark Mode Toggle Button */}
           <button
@@ -191,65 +177,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
-          {/* Account status: Authenticated Account OR Guest/Local Storage Mode */}
-          {user ? (
-            <div className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
-                  {userInitial}
-                </div>
-                <div className="hidden sm:block text-left text-xs leading-tight">
-                  <div className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[100px] xl:max-w-[140px]">
-                    {user.displayName || user.email?.split('@')[0]}
-                  </div>
-                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 font-medium">
-                    <UserCheck className="w-2.5 h-2.5" />
-                    <span>Signed In</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={onSignOut}
-                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                title="Sign out of your account"
-              >
-                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-            </div>
-          ) : isLocalMode ? (
-            <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 dark:border-slate-800">
-              <div
-                className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300"
-                title="Your resume and applications are saved in your local browser storage"
-              >
-                <HardDrive className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="hidden sm:inline">Browser Mode</span>
-              </div>
-              <button
-                onClick={() => onOpenAuth('signin')}
-                className="px-2 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
-              >
-                Sign In
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 pl-1 sm:pl-2 border-l border-slate-200 dark:border-slate-800">
-              <button
-                onClick={() => onOpenAuth('signin')}
-                className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => onOpenAuth('signup')}
-                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-all active:scale-[0.98]"
-              >
-                <span>Sign Up</span>
-              </button>
-            </div>
-          )}
-
           {/* Mobile Menu Hamburger Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -264,57 +191,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Mobile Drawer Navigation Menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 space-y-3 animate-in slide-in-from-top-2 duration-150 shadow-lg">
-          {/* User Account Info on Mobile */}
-          {user ? (
-            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
-                  {userInitial}
-                </div>
-                <div className="text-left text-xs">
-                  <div className="font-semibold text-slate-900 dark:text-white truncate max-w-[180px]">
-                    {user.displayName || user.email}
-                  </div>
-                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                    <UserCheck className="w-2.5 h-2.5" />
-                    <span>Signed In</span>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  onSignOut();
-                  setMobileMenuOpen(false);
-                }}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 rounded-lg"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
-              <button
-                onClick={() => {
-                  onOpenAuth('signin');
-                  setMobileMenuOpen(false);
-                }}
-                className="flex-1 py-2 text-xs font-bold text-center text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 rounded-lg shadow-xs"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => {
-                  onOpenAuth('signup');
-                  setMobileMenuOpen(false);
-                }}
-                className="flex-1 py-2 text-xs font-bold text-center text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs"
-              >
-                Create Account
-              </button>
-            </div>
-          )}
-
           {profile && (
             <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl space-y-2 border border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200">

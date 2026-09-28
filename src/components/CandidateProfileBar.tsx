@@ -19,7 +19,6 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { US_STATE_NAMES, cleanCandidateName, cleanTitle } from '../utils/clientResumeParser';
-import { User } from 'firebase/auth';
 
 interface CandidateProfileBarProps {
   profile: CandidateProfile;
@@ -27,7 +26,6 @@ interface CandidateProfileBarProps {
   onStartOver?: () => void;
   onUpdateState?: (newState: string) => void;
   onUpdateSalary?: (min: number, max: number) => void;
-  user?: User | null;
   onSaveResume?: () => void;
   isSavingResume?: boolean;
   resumeSaved?: boolean;
@@ -39,7 +37,6 @@ export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
   onStartOver,
   onUpdateState,
   onUpdateSalary,
-  user,
   onSaveResume,
   isSavingResume = false,
   resumeSaved = false,
@@ -143,7 +140,7 @@ export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
                     ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                     : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100'
                 }`}
-                title={user ? 'Save resume to your account' : 'Save resume'}
+                title="Save resume to local browser storage"
               >
                 {isSavingResume ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
