@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, MapPin, DollarSign, ArrowUpDown, Filter } from 'lucide-react';
+import { Search, MapPin, DollarSign, ArrowUpDown, BookmarkCheck } from 'lucide-react';
 import { JobFilterState } from '../types';
 import { US_STATE_NAMES } from '../utils/clientResumeParser';
 
@@ -8,6 +8,7 @@ interface JobFilterBarProps {
   onChange: (newFilters: JobFilterState) => void;
   totalJobs: number;
   filteredCount: number;
+  appliedCount?: number;
   userState?: string;
 }
 
@@ -16,6 +17,7 @@ export const JobFilterBar: React.FC<JobFilterBarProps> = ({
   onChange,
   totalJobs,
   filteredCount,
+  appliedCount = 0,
   userState = 'NC',
 }) => {
   const currentState = filters.userState || userState;
@@ -38,6 +40,27 @@ export const JobFilterBar: React.FC<JobFilterBarProps> = ({
 
         {/* Filters Group */}
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          {/* Applied Filter Toggle */}
+          <button
+            onClick={() => onChange({ ...filters, onlyApplied: !filters.onlyApplied })}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+              filters.onlyApplied
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+            }`}
+            title="Filter to show only jobs you have marked as applied for"
+          >
+            <BookmarkCheck className="w-3.5 h-3.5" />
+            <span>Applied</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                filters.onlyApplied ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {appliedCount}
+            </span>
+          </button>
+
           {/* Seniority Segment */}
           <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-lg border border-slate-200/50 text-xs">
             {['All', 'Junior', 'Mid-Level', 'Senior'].map((lvl) => (
@@ -131,11 +154,17 @@ export const JobFilterBar: React.FC<JobFilterBarProps> = ({
             </span>
           </label>
 
-          {filters.maxSalary && filters.maxSalary > 0 && (
+          {filters.onlyApplied && (
+            <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px] font-semibold">
+              Filtering to {appliedCount} Applied Role{appliedCount === 1 ? '' : 's'}
+            </span>
+          )}
+
+          {filters.maxSalary && filters.maxSalary > 0 ? (
             <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px] font-semibold">
               Capped at ${(filters.maxSalary / 1000).toFixed(0)}k/yr
             </span>
-          )}
+          ) : null}
         </div>
 
         {/* Result count line */}
@@ -146,6 +175,7 @@ export const JobFilterBar: React.FC<JobFilterBarProps> = ({
           </span>
 
           {(filters.searchQuery ||
+            filters.onlyApplied ||
             filters.seniority !== 'All' ||
             (filters.userState && filters.userState !== 'All States') ||
             (filters.maxSalary && filters.maxSalary > 0) ||
@@ -159,6 +189,7 @@ export const JobFilterBar: React.FC<JobFilterBarProps> = ({
                   maxSalary: 0,
                   userState: 'All States',
                   onlyMyState: false,
+                  onlyApplied: false,
                   minMatchScore: 0,
                   region: 'All Regions',
                   sortBy: 'overallMatch',

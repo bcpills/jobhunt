@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Test connection probe allowed for bootstrapping
+    match /test/{docId} {
+      allow get: if true;
+    }
+
+    // Validation helper for User Resume Profile
+    function isValidUserResume(data, userId) {
+      return data.userId == userId &&
+        data.email is string && data.email.size() <= 200 &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 200)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000)) &&
+        (!('fileName' in data) || (data.fileName is string && data.fileName.size() <= 256)) &&
+        (!('rawText' in data) || (data.rawText is string && data.rawText.size() <= 200000)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    // Validation helper for Applied Job records
+    function isValidAppliedJob(data, userId) {
+      return data.userId == userId &&
+        data.jobId is string && data.jobId.size() <= 128 &&
+        data.jobTitle is string && data.jobTitle.size() <= 200 &&
+        data.company is string && data.company.size() <= 200 &&
+        data.appliedAt is string && data.appliedAt.size() <= 64 &&
+        data.status in ['applied', 'interviewing', 'offer', 'archived'] &&
+        (!('location' in data) || (data.location is string && data.location.size() <= 200)) &&
+        (!('salary' in data) || (data.salary is string && data.salary.size() <= 100)) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000));
+    }
+
+    // User Profile & Saved Resume
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserResume(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserResume(incoming(), userId);
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Applied jobs subcollection
+      match /appliedJobs/{jobId} {
+        allow read: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(jobId) && isValidAppliedJob(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(jobId) && isValidAppliedJob(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(jobId);
+      }
+    }
+  }
+}

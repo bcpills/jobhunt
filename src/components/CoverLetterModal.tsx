@@ -15,7 +15,7 @@ import {
   Loader2,
   FileCheck2
 } from 'lucide-react';
-import { exportCoverLetterPdf, exportCoverLetterDocx } from '../utils/documentExporter';
+import { exportCoverLetterPdf, exportCoverLetterDocx, cleanCandidateName } from '../utils/documentExporter';
 
 interface CoverLetterModalProps {
   isOpen: boolean;
@@ -109,7 +109,7 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Cover_Letter_${job.company.replace(/\s+/g, '_')}_${(profile?.name || 'Candidate').replace(/\s+/g, '_')}.txt`;
+    link.download = `Cover_Letter_${job.company.replace(/\s+/g, '_')}_${cleanCandidateName(profile?.name || 'Candidate').replace(/\s+/g, '_')}.txt`;
     link.click();
     URL.revokeObjectURL(url);
     setExportNotice('Downloaded plain text (.txt) file');

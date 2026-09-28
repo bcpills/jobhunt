@@ -199,6 +199,29 @@ export interface CoverLetter {
   fullText: string;
 }
 
+export interface AppliedJobRecord {
+  jobId: string;
+  jobTitle: string;
+  company: string;
+  location?: string;
+  salary?: string;
+  matchScore: number;
+  appliedAt: string; // ISO date string
+  status: 'applied' | 'interviewing' | 'offer' | 'archived';
+  notes?: string;
+}
+
+export interface SavedUserResume {
+  userId: string;
+  email: string;
+  displayName?: string;
+  photoURL?: string;
+  fileName?: string;
+  rawText: string;
+  profile: CandidateProfile;
+  updatedAt: string;
+}
+
 export interface JobFilterState {
   searchQuery: string;
   seniority: string;
@@ -207,6 +230,7 @@ export interface JobFilterState {
   salaryTier?: 'all' | 'achievable' | 'mid' | 'senior' | 'custom';
   userState?: string; // e.g. "NC", "TX", "All States"
   onlyMyState?: boolean;
+  onlyApplied?: boolean;
   minMatchScore: number;
   region: string;
   sortBy?: 'overallMatch' | 'trajectoryFit' | 'cultureFit' | 'skillOverlap' | 'salaryLowToHigh' | 'salaryHighToLow';

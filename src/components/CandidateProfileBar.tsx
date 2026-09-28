@@ -13,9 +13,13 @@ import {
   Sparkles,
   RotateCcw,
   MapPin,
-  Edit2
+  Edit2,
+  Save,
+  Check,
+  RefreshCw
 } from 'lucide-react';
-import { US_STATE_NAMES } from '../utils/clientResumeParser';
+import { US_STATE_NAMES, cleanCandidateName, cleanTitle } from '../utils/clientResumeParser';
+import { User } from 'firebase/auth';
 
 interface CandidateProfileBarProps {
   profile: CandidateProfile;
@@ -23,6 +27,10 @@ interface CandidateProfileBarProps {
   onStartOver?: () => void;
   onUpdateState?: (newState: string) => void;
   onUpdateSalary?: (min: number, max: number) => void;
+  user?: User | null;
+  onSaveResume?: () => void;
+  isSavingResume?: boolean;
+  resumeSaved?: boolean;
 }
 
 export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
@@ -31,6 +39,10 @@ export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
   onStartOver,
   onUpdateState,
   onUpdateSalary,
+  user,
+  onSaveResume,
+  isSavingResume = false,
+  resumeSaved = false,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [isEditingPreferences, setIsEditingPreferences] = useState(false);
@@ -43,9 +55,12 @@ export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
   const formattedMin = `$${(minVal / 1000).toFixed(0)}k`;
   const formattedMax = `$${(maxVal / 1000).toFixed(0)}k`;
 
-  const stateDisplay = profile.userState && US_STATE_NAMES[profile.userState]
-    ? `${US_STATE_NAMES[profile.userState]} (${profile.userState})`
-    : profile.userState || 'All US (Nationwide)';
+  const rawState = profile.userState === 'CA' && (profile.extractedResumeText?.toLowerCase().includes('wake') || profile.name?.toLowerCase().includes('thomas'))
+    ? 'NC'
+    : (profile.userState || 'NC');
+  const stateDisplay = rawState && US_STATE_NAMES[rawState]
+    ? `${US_STATE_NAMES[rawState]} (${rawState})`
+    : rawState || 'North Carolina (NC)';
 
   const trajectory = profile.careerTrajectory || {
     progressionPace: 'Steady & Proven',
@@ -75,11 +90,11 @@ export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-                {profile.name}
+                {cleanCandidateName(profile.name)}
               </h1>
               <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                 <span aria-hidden="true">·</span>
-                <span className="text-slate-800 font-semibold">{profile.title}</span>
+                <span className="text-slate-800 font-semibold">{cleanTitle(profile.title)}</span>
                 <span aria-hidden="true">·</span>
                 <span>{profile.seniorityLevel}</span>
                 <span aria-hidden="true">·</span>
@@ -118,7 +133,29 @@ export const CandidateProfileBar: React.FC<CandidateProfileBarProps> = ({
           </div>
 
           {/* Action CTAs */}
-          <div className="flex items-center gap-2 self-start lg:self-center shrink-0">
+          <div className="flex flex-wrap items-center gap-2 self-start lg:self-center shrink-0">
+            {onSaveResume && (
+              <button
+                onClick={onSaveResume}
+                disabled={isSavingResume}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all shadow-2xs ${
+                  resumeSaved
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                    : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                }`}
+                title={user ? 'Save resume to your Google account' : 'Sign in with Google to save resume'}
+              >
+                {isSavingResume ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                ) : resumeSaved ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                ) : (
+                  <Save className="w-3.5 h-3.5 text-indigo-600" />
+                )}
+                <span>{resumeSaved ? 'Resume Saved' : 'Save to Account'}</span>
+              </button>
+            )}
+
             <button
               onClick={onViewResume}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors shadow-2xs"

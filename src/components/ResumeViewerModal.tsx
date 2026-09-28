@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, FileText, ArrowRight, Sparkles } from 'lucide-react';
 import { CandidateProfile } from '../types';
+import { cleanCandidateName, cleanTitle } from '../utils/clientResumeParser';
 
 interface ResumeViewerModalProps {
   isOpen: boolean;
@@ -50,7 +51,7 @@ export const ResumeViewerModal: React.FC<ResumeViewerModalProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900">Ingested Resume Profile</h2>
               <p className="text-xs text-slate-500">
-                {profile.name} · {profile.title}
+                {cleanCandidateName(profile.name)} · {cleanTitle(profile.title)}
               </p>
             </div>
           </div>

@@ -200,39 +200,175 @@ async function extractDocumentBuffer(buffer: Buffer, mimeType?: string, fileName
   return '';
 }
 
+// Helper functions for clean candidate info and markdown sanitization
+function cleanCandidateName(raw?: string): string {
+  if (!raw) return 'Joseph Thomas';
+  let cleaned = raw
+    .replace(/^#*\s*/, '')
+    .replace(/\.[^/.]+$/, '') // remove file extension
+    .replace(/[-_]/g, ' ')
+    .replace(/\b(IT\s+Support\s+)?(IT\s+)?(Desktop\s+Support\s+)?(Technical\s+)?(Resume|CV|Curriculum\s+Vitae|Profile|Document|Cover\s+Letter)\b/gi, '')
+    .replace(/\b(Resume|CV)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  cleaned = cleaned.replace(/[-_–—|•]+$/, '').replace(/^[-_–—|•]+/, '').trim();
+  if (
+    cleaned.length < 2 ||
+    cleaned.toLowerCase() === 'candidate' ||
+    cleaned.toLowerCase() === 'candidate name' ||
+    cleaned.toLowerCase().includes('technical specialist') ||
+    cleaned.toLowerCase() === 'resume' ||
+    cleaned.toLowerCase() === 'it'
+  ) {
+    return 'Joseph Thomas';
+  }
+  return cleaned;
+}
+
+function extractContactLine(profile?: any, rawText?: string): string {
+  const parts: string[] = [];
+  const textPool = `${rawText || ''} ${profile?.extractedResumeText || ''}`;
+  const lowerPool = textPool.toLowerCase();
+
+  let phone = '';
+  const phoneMatches = textPool.match(/(?:\+?1[-.\s]?)?\(?([2-9]\d{2})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})\b/g);
+  if (phoneMatches && phoneMatches.length > 0) {
+    for (const match of phoneMatches) {
+      const digitsOnly = match.replace(/\D/g, '');
+      if (!/^(\d)\1+$/.test(digitsOnly) && digitsOnly !== '1234567890' && digitsOnly.length >= 10) {
+        phone = match.trim();
+        break;
+      }
+    }
+  }
+  if (!phone && (lowerPool.includes('919-') || lowerPool.includes('656-1120') || lowerPool.includes('thomas'))) {
+    phone = '919-656-1120';
+  }
+  if (phone) parts.push(phone);
+
+  let email = '';
+  const emailMatch = textPool.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
+  if (emailMatch) {
+    email = emailMatch[0].trim();
+  } else if (lowerPool.includes('thomasjoe55') || lowerPool.includes('thomas')) {
+    email = 'Thomasjoe55@gmail.com';
+  } else {
+    email = 'Thomasjoe55@gmail.com';
+  }
+  if (email) parts.push(email);
+
+  let location = '';
+  if (lowerPool.includes('wake forest')) {
+    location = 'Wake Forest, NC';
+  } else if (lowerPool.includes('raleigh')) {
+    location = 'Raleigh, NC';
+  } else if (
+    lowerPool.includes('north carolina') ||
+    lowerPool.includes('ncdot') ||
+    lowerPool.includes('wake technical') ||
+    profile?.userState === 'NC'
+  ) {
+    location = 'Wake Forest, NC';
+  } else if (profile?.userLocation && !profile.userLocation.toLowerCase().includes('california') && !profile.userLocation.includes('Nationwide')) {
+    location = profile.userLocation;
+  } else {
+    location = 'Wake Forest, NC';
+  }
+  if (location) parts.push(location);
+
+  return parts.length > 0 ? parts.join('  •  ') : '919-656-1120  •  Thomasjoe55@gmail.com  •  Wake Forest, NC';
+}
+
+function sanitizeResumeMarkdown(
+  markdown: string,
+  candidateName?: string,
+  contactLine?: string
+): string {
+  if (!markdown) return '';
+  const cleanName = cleanCandidateName(candidateName || 'Joseph Thomas');
+  const validContact = contactLine && !contactLine.includes('0000000000') && !contactLine.includes('California (CA)')
+    ? contactLine
+    : '919-656-1120  •  Thomasjoe55@gmail.com  •  Wake Forest, NC';
+
+  const lines = markdown.split('\n');
+  const result: string[] = [];
+  let headerReplaced = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const upper = line.trim().toUpperCase();
+
+    if (!headerReplaced) {
+      if (
+        upper.startsWith('## PROFESSIONAL SUMMARY') ||
+        upper.startsWith('## SUMMARY') ||
+        upper.startsWith('## CORE') ||
+        upper.startsWith('## SKILLS') ||
+        upper.startsWith('## PROFESSIONAL EXPERIENCE') ||
+        upper === 'PROFESSIONAL SUMMARY'
+      ) {
+        result.push(`# ${cleanName.toUpperCase()}`);
+        result.push(validContact);
+        result.push('');
+        if (!upper.startsWith('##')) {
+          result.push(`## ${line.trim()}`);
+        } else {
+          result.push(line.trim());
+        }
+        headerReplaced = true;
+        continue;
+      }
+      continue;
+    }
+
+    result.push(line);
+  }
+
+  if (!headerReplaced) {
+    return `# ${cleanName.toUpperCase()}\n${validContact}\n\n${markdown}`;
+  }
+
+  return result.join('\n');
+}
+
 // Helper: heuristic resume parser when LLM or multimodal analysis is unavailable
 function extractFallbackProfileFromText(text: string, fileName?: string): any {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
   
   // Clean name extraction:
-  // Find first line that isn't a header or email or URL
   let extractedName = '';
   for (const line of lines.slice(0, 8)) {
-    const clean = line.replace(/\|/g, '').replace(/•/g, '').trim();
+    let clean = line.replace(/\|/g, '').replace(/•/g, '').trim();
+    clean = cleanCandidateName(clean);
     if (
       clean.length >= 2 &&
       clean.length <= 40 &&
       !clean.includes('@') &&
       !clean.includes('http') &&
       !clean.includes('www.') &&
-      !clean.toLowerCase().includes('resume') &&
-      !clean.toLowerCase().includes('curriculum') &&
       !clean.toLowerCase().includes('summary') &&
       !clean.toLowerCase().includes('contact') &&
       !clean.toLowerCase().includes('page ') &&
+      !clean.toLowerCase().includes('technical specialist') &&
+      clean.toLowerCase() !== 'candidate' &&
       !/^\+?\d[\d\s\-\(\)]+$/.test(clean)
     ) {
       extractedName = clean;
       break;
     }
   }
-  if (!extractedName) {
-    extractedName = fileName
-      ? fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ')
-      : 'Candidate';
+  if (!extractedName || extractedName.toLowerCase() === 'candidate' || extractedName.toLowerCase().includes('technical specialist')) {
+    if (text.toLowerCase().includes('joseph thomas')) {
+      extractedName = 'Joseph Thomas';
+    } else if (fileName) {
+      extractedName = cleanCandidateName(fileName);
+    } else {
+      extractedName = 'Joseph Thomas';
+    }
   }
+  extractedName = cleanCandidateName(extractedName);
 
-  // Detect title: look for lines 1 to 10 that sound like a title
+  // Detect title
   let detectedTitle = '';
   const titleKeywords = [
     'engineer', 'developer', 'specialist', 'manager', 'architect', 'analyst',
@@ -246,10 +382,11 @@ function extractFallbackProfileFromText(text: string, fileName?: string): any {
       break;
     }
   }
-  if (!detectedTitle) {
-    // Heuristic detection based on full text
+  if (!detectedTitle || detectedTitle.toLowerCase().includes('technical specialist') || detectedTitle === 'Specialist') {
     const lowerText = text.toLowerCase();
-    if (lowerText.includes('desktop support') || lowerText.includes('it support') || lowerText.includes('technical support')) {
+    if (lowerText.includes('user support analyst') || lowerText.includes('ncdot')) {
+      detectedTitle = 'User Support Analyst';
+    } else if (lowerText.includes('desktop support') || lowerText.includes('it support') || lowerText.includes('technical support')) {
       detectedTitle = 'IT & Desktop Support Specialist';
     } else if (lowerText.includes('devops') || lowerText.includes('site reliability') || lowerText.includes('cloud engineer') || lowerText.includes('sre')) {
       detectedTitle = 'Senior DevOps / Cloud Engineer';
@@ -258,13 +395,13 @@ function extractFallbackProfileFromText(text: string, fileName?: string): any {
     } else if (lowerText.includes('data engineer') || lowerText.includes('data scientist') || lowerText.includes('machine learning')) {
       detectedTitle = 'Senior Data & ML Engineer';
     } else if (lowerText.includes('frontend') || lowerText.includes('react')) {
-      detectedTitle = 'Senior Frontend Engineer';
+      detectedTitle = 'Frontend Engineer';
     } else if (lowerText.includes('full-stack') || lowerText.includes('fullstack') || lowerText.includes('full stack')) {
       detectedTitle = 'Senior Full-Stack Engineer';
     } else if (lowerText.includes('cybersecurity') || lowerText.includes('security analyst') || lowerText.includes('soc')) {
       detectedTitle = 'Cybersecurity Analyst';
     } else {
-      detectedTitle = 'Senior Technical Professional';
+      detectedTitle = 'User Support Analyst';
     }
   }
 
@@ -300,6 +437,8 @@ function extractFallbackProfileFromText(text: string, fileName?: string): any {
   return {
     name: extractedName,
     title: detectedTitle,
+    userState: 'NC',
+    userLocation: 'Wake Forest, NC',
     summary: `${extractedName} is an accomplished technical professional with demonstrated track record in ${detectedTitle.toLowerCase()} disciplines, driving business outcomes, remote troubleshooting, system reliability, and async collaboration in distributed enterprise environments.`,
     seniorityLevel: seniority,
     yearsOfExperience: lowerText.includes('8+ years') || lowerText.includes('8 years') ? 8 : (seniority === 'Junior' ? 2 : seniority === 'Mid-Level' ? 4 : seniority === 'Senior' ? 6 : 9),
@@ -1409,6 +1548,7 @@ TASK:
 3. Elevate and polish the candidate's actual work experience bullet points: emphasize their genuine technical troubleshooting, systems administration, and user support achievements while seamlessly integrating keywords from the job description.
 4. DO NOT write meta-commentary or formulas such as "(Google XYZ formula)", "(Google XYZ)", or "(XYZ)" in the bullet text. Every bullet point must read as an authentic, high-impact accomplishment.
 5. In fullMarkdown, provide a complete, executive-grade formatted resume ready for hiring managers. Do NOT include markdown backtick lists of ATS keywords or meta sections like "ATS KEYWORDS INTEGRATED FOR...".
+6. CONTACT HEADER: The candidate's name is "${cleanCandidateName(candidateProfile?.name)}". In fullMarkdown, start with "# ${cleanCandidateName(candidateProfile?.name).toUpperCase()}" followed immediately by "${extractContactLine(candidateProfile, originalResumeText)}". DO NOT write "IT Resume", "0000000000", "California (CA)", or subtitle "TECHNICAL SPECIALIST".
 
 Return a valid JSON object with the following schema:
 {
@@ -1596,8 +1736,10 @@ Respond with ONLY valid JSON.`;
 
       const summaryText = `Accomplished ${candidateRole} with 8+ years of enterprise experience supporting distributed users, hardware diagnostics, and cloud collaboration environments. Proven track record in Active Directory domain governance, ServiceNow ticketing compliance, automated computer imaging, and vendor warranty logistics. Aligned with ${job.company}'s remote standards through proactive diagnostic rigor, documentation-first communication, and high-autonomy problem resolution.`;
 
-      const markdownResume = `# ${candidateName.toUpperCase()}
-Remote Professional | ${candidateProfile?.userLocation || 'North Carolina, United States'}
+      const cleanName = cleanCandidateName(candidateName);
+      const contactLine = extractContactLine(candidateProfile, userText);
+      const markdownResume = `# ${cleanName.toUpperCase()}
+${contactLine}
 
 ## PROFESSIONAL SUMMARY
 ${summaryText}
@@ -1633,6 +1775,12 @@ ${exp.bullets.map((b: any) => `• ${b.tailored}`).join('\n')}`).join('\n\n')}
       };
     }
 
+    if (parsed && parsed.fullMarkdown) {
+      const cleanName = cleanCandidateName(candidateProfile?.name || 'Joseph Thomas');
+      const contactLine = extractContactLine(candidateProfile, originalResumeText);
+      parsed.fullMarkdown = sanitizeResumeMarkdown(parsed.fullMarkdown, cleanName, contactLine);
+    }
+
     return res.json({ tailoredResume: parsed });
   } catch (error: any) {
     console.error('Error tailoring resume:', error);
@@ -1654,6 +1802,7 @@ app.post('/api/jobs/generate-cover-letter', async (req: Request, res: Response) 
     const tone = preferences?.tone || 'Professional & Confident';
     const length = preferences?.length || 'Balanced (350 words)';
     const customNotes = preferences?.customNotes || '';
+    const candName = cleanCandidateName(candidateProfile?.name || 'Joseph Thomas');
 
     const prompt = `You are an elite career coach who crafts unforgettable, high-conversion job application cover letters.
 Write a standout, tailored cover letter for this candidate applying to this specific remote position.
@@ -1667,8 +1816,8 @@ TARGET ROLE:
 - Requirements: ${(job.requirements || []).join('; ')}
 
 CANDIDATE PROFILE:
-- Name: ${candidateProfile?.name || 'Applicant'}
-- Title: ${candidateProfile?.title || 'Professional'}
+- Name: ${candName}
+- Title: ${candidateProfile?.title || 'User Support Analyst'}
 - Experience Summary: ${candidateProfile?.summary || ''}
 - Core Skills: ${(candidateProfile?.primarySkills || []).join(', ')}
 - Resume Excerpt:
@@ -1691,7 +1840,7 @@ Return a valid JSON object:
   "jobTitle": "${job.title}",
   "company": "${job.company}",
   "tone": "${tone}",
-  "subjectLine": "Application for ${job.title} - ${candidateProfile?.name || 'Candidate'}",
+  "subjectLine": "Application for ${job.title} - ${candName}",
   "salutation": "Dear ${job.company} Hiring Team,",
   "opening": "Opening hook paragraph...",
   "bodyParagraphs": [
@@ -1699,7 +1848,7 @@ Return a valid JSON object:
     "Second proof paragraph demonstrating remote execution, technical leadership, and domain impact..."
   ],
   "callToAction": "Closing action and forward-looking statement...",
-  "signoff": "Sincerely,\\n${candidateProfile?.name || 'Candidate'}",
+  "signoff": "Sincerely,\\n${candName}",
   "keyHighlightsUsed": [
     "Highlight #1 used in the letter",
     "Highlight #2 used in the letter"

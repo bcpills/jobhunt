@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "userResume": {
+      "title": "User Resume Profile",
+      "description": "User profile and extracted resume data saved to user account",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The unique Firebase Auth UID of the user"
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's Google account email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User's display name or candidate name"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User profile avatar URL from Google account"
+        },
+        "fileName": {
+          "type": "string",
+          "description": "Original file name of the uploaded resume"
+        },
+        "rawText": {
+          "type": "string",
+          "maxLength": 200000,
+          "description": "Full extracted plain text of the resume"
+        },
+        "profile": {
+          "type": "object",
+          "description": "Structured candidate profile breakdown"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp when the resume was saved"
+        }
+      },
+      "required": ["userId", "email"]
+    },
+    "appliedJob": {
+      "title": "Applied Job",
+      "description": "Tracking of job application status for a specific opening",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The unique Firebase Auth UID of the candidate"
+        },
+        "jobId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Unique identifier of the job opening"
+        },
+        "jobTitle": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Title of the job position"
+        },
+        "company": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Company name"
+        },
+        "location": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Job location or work arrangement"
+        },
+        "salary": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Compensation or salary range"
+        },
+        "matchScore": {
+          "type": "number",
+          "description": "Calculated match percentage at time of application"
+        },
+        "appliedAt": {
+          "type": "string",
+          "description": "ISO timestamp when marked as applied"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["applied", "interviewing", "offer", "archived"],
+          "description": "Current application stage"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Candidate notes on application or referral"
+        }
+      },
+      "required": ["userId", "jobId", "jobTitle", "company", "appliedAt", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "userResume",
+      "description": "Private candidate resume and user profile data"
+    },
+    "/users/{userId}/appliedJobs/{jobId}": {
+      "schema": "appliedJob",
+      "description": "Jobs marked as applied for by the authenticated candidate"
+    }
+  }
+}

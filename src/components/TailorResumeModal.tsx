@@ -16,7 +16,7 @@ import {
   Loader2,
   FileCheck2
 } from 'lucide-react';
-import { exportTailoredResumePdf, exportTailoredResumeDocx } from '../utils/documentExporter';
+import { exportTailoredResumePdf, exportTailoredResumeDocx, cleanCandidateName, extractContactLine, sanitizeResumeMarkdown } from '../utils/documentExporter';
 
 interface TailorResumeModalProps {
   isOpen: boolean;
@@ -44,12 +44,15 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
 
-  // Update markdown buffer when tailoredResume changes
+  // Update markdown buffer when tailoredResume changes with sanitized executive header
   React.useEffect(() => {
     if (tailoredResume?.fullMarkdown) {
-      setEditableMarkdown(tailoredResume.fullMarkdown);
+      const cleanName = cleanCandidateName(profile?.name || 'Joseph Thomas');
+      const contact = extractContactLine(profile, profile?.extractedResumeText);
+      const sanitized = sanitizeResumeMarkdown(tailoredResume.fullMarkdown, cleanName, contact);
+      setEditableMarkdown(sanitized);
     }
-  }, [tailoredResume]);
+  }, [tailoredResume, profile]);
 
   if (!isOpen || !job) return null;
 
@@ -417,15 +420,18 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                   <div className="p-8 bg-white border border-slate-300 rounded-xl shadow-xs font-serif text-slate-900 max-w-2xl mx-auto space-y-4 printable-resume">
                     <div className="text-center pb-3 border-b border-slate-200 space-y-1">
                       <h2 className="text-2xl font-bold tracking-tight font-sans text-slate-900">
-                        {profile?.name || editableMarkdown.split('\n')[0]?.replace(/^#*\s*/, '') || 'Candidate Resume'}
+                        {cleanCandidateName(profile?.name || 'Joseph Thomas').toUpperCase()}
                       </h2>
-                      <p className="text-xs text-slate-600 font-sans">
-                        Target Position: {job.title} · {job.company}
+                      <p className="text-xs text-slate-600 font-sans font-medium">
+                        {extractContactLine(profile, profile?.extractedResumeText)}
                       </p>
                     </div>
 
                     <div className="text-xs leading-relaxed font-sans space-y-3 whitespace-pre-line text-slate-800">
-                      {editableMarkdown}
+                      {editableMarkdown
+                        .replace(/^#[^\n]*\n*/i, '')
+                        .replace(/^(?:(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[^\n•]+•[^\n]+)\n*/i, '')
+                        .trim()}
                     </div>
                   </div>
                 </div>

@@ -11,12 +11,16 @@ import {
   Award,
   ChevronDown,
   ChevronUp,
-  Briefcase
+  BookmarkCheck,
+  Check,
+  AlignLeft
 } from 'lucide-react';
 
 interface JobCardProps {
   job: JobOpening;
   userState?: string;
+  isApplied?: boolean;
+  onToggleApply?: (job: JobOpening) => void;
   onTailorResume: (job: JobOpening) => void;
   onGenerateCoverLetter: (job: JobOpening) => void;
   onViewDetails: (job: JobOpening) => void;
@@ -26,6 +30,8 @@ interface JobCardProps {
 export const JobCard: React.FC<JobCardProps> = ({
   job,
   userState = 'NC',
+  isApplied = false,
+  onToggleApply,
   onTailorResume,
   onGenerateCoverLetter,
   onViewDetails,
@@ -45,33 +51,44 @@ export const JobCard: React.FC<JobCardProps> = ({
   const isEligibleInState = isNationwide || (userState && job.eligibleStates?.includes(userState));
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group overflow-hidden">
+    <div className={`bg-white rounded-xl border transition-all flex flex-col justify-between group overflow-hidden ${
+      isApplied
+        ? 'border-emerald-300 ring-1 ring-emerald-200/80 shadow-xs'
+        : 'border-slate-200/90 shadow-xs hover:shadow-md'
+    }`}>
       <div className="p-5 sm:p-6">
-        {/* Top bar: Company, Remote Indicator & Quick Research Link */}
+        {/* Top bar: Company, Remote Indicator & Quick Badges */}
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm shadow-2xs shrink-0">
               {job.company.slice(0, 2).toUpperCase()}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 truncate">
                   {job.company}
                 </h4>
                 {/* Direct quick-access button to company research */}
                 <button
                   onClick={() => onResearchCompany(job)}
-                  title={`Research ${job.company} size, news, Glassdoor reviews & salary bands`}
+                  title={`Research ${job.company} company intelligence`}
                   className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50/70 hover:bg-indigo-100 px-1.5 py-0.5 rounded transition-colors"
                 >
                   <Building2 className="w-3 h-3" />
                   <span>Research</span>
                 </button>
+
+                {isApplied && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-full">
+                    <Check className="w-3 h-3 stroke-[3]" />
+                    <span>Applied</span>
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 mt-0.5">
                 <MapPin className="w-3 h-3 text-slate-400" />
-                <span>{job.location}</span>
+                <span className="truncate">{job.location}</span>
                 <span aria-hidden="true">·</span>
                 <span className="text-indigo-700 font-medium">{job.workArrangement}</span>
               </div>
@@ -84,11 +101,11 @@ export const JobCard: React.FC<JobCardProps> = ({
                   </span>
                 ) : isEligibleInState ? (
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                    🟢 Eligible in your state ({userState})
+                    🟢 Eligible in {userState}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                    📍 State-Specific Remote: {job.eligibleStates ? job.eligibleStates.slice(0, 4).join(', ') : 'Restricted'}
+                    📍 State-Specific
                   </span>
                 )}
               </div>
@@ -121,98 +138,31 @@ export const JobCard: React.FC<JobCardProps> = ({
             {job.title}
           </h3>
           <div className="flex items-center justify-between gap-2 mt-1">
-            <p className="text-xs font-semibold text-slate-700">
+            <p className="text-xs font-semibold text-slate-800">
               {job.salary}
             </p>
             <button
-              onClick={() => onResearchCompany(job)}
-              className="text-[11px] font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+              onClick={() => onViewDetails(job)}
+              className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
             >
-              View Salary Benchmarks &rarr;
+              View Full Description &rarr;
             </button>
           </div>
         </div>
 
-        {/* Advanced Algorithm Multi-Factor Fit Matrix */}
-        <div className="mt-3 pt-3 border-t border-slate-100/90">
-          <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mb-1.5">
-            <span className="text-slate-700">Matching Algorithm Breakdown</span>
-            <button
-              onClick={() => setShowAlgorithmDetails(!showAlgorithmDetails)}
-              className="text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 text-[11px]"
-            >
-              <span>{showAlgorithmDetails ? 'Hide analysis' : 'Deep breakdown'}</span>
-              {showAlgorithmDetails ? (
-                <ChevronUp className="w-3 h-3" />
-              ) : (
-                <ChevronDown className="w-3 h-3" />
-              )}
-            </button>
+        {/* JOB DESCRIPTION FIRST: Prominent overview snippet so candidate knows the role */}
+        <div className="mt-3 p-3 bg-slate-50/90 rounded-xl border border-slate-200/70">
+          <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+            <AlignLeft className="w-3 h-3 text-slate-400" />
+            <span>Job Description & Role Summary</span>
           </div>
-
-          {/* 3 Metric Pills */}
-          <div className="grid grid-cols-3 gap-1.5 text-center text-[10px]">
-            <div className="bg-slate-50 border border-slate-200/70 rounded-md p-1.5">
-              <span className="text-slate-400 block font-medium">Trajectory</span>
-              <strong className="text-slate-800 text-xs font-bold">{trajectoryScore}%</strong>
-            </div>
-            <div className="bg-slate-50 border border-slate-200/70 rounded-md p-1.5">
-              <span className="text-slate-400 block font-medium">Culture Fit</span>
-              <strong className="text-indigo-700 text-xs font-bold">{cultureScore}%</strong>
-            </div>
-            <div className="bg-slate-50 border border-slate-200/70 rounded-md p-1.5">
-              <span className="text-slate-400 block font-medium">Skill Depth</span>
-              <strong className="text-emerald-700 text-xs font-bold">{skillScore}%</strong>
-            </div>
-          </div>
-
-          {/* Expanded Algorithm Insights */}
-          {showAlgorithmDetails && (
-            <div className="mt-2.5 p-2.5 bg-indigo-50/40 rounded-lg border border-indigo-100/80 space-y-2 text-xs animate-in slide-in-from-top-1 duration-150">
-              {job.careerTrajectoryAnalysis && (
-                <div className="text-slate-700">
-                  <div className="flex items-center gap-1 font-bold text-slate-900 text-[11px]">
-                    <TrendingUp className="w-3 h-3 text-indigo-600" />
-                    <span>Career Trajectory Fit:</span>
-                  </div>
-                  <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
-                    {job.careerTrajectoryAnalysis}
-                  </p>
-                </div>
-              )}
-
-              {job.cultureFitDetails && (
-                <div className="text-slate-700 pt-1 border-t border-indigo-100/60">
-                  <div className="flex items-center gap-1 font-bold text-slate-900 text-[11px]">
-                    <Award className="w-3 h-3 text-indigo-600" />
-                    <span>Inferred Culture Alignment:</span>
-                  </div>
-                  <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
-                    <strong className="text-slate-800">{job.cultureFitDetails.companyStage}:</strong> {job.cultureFitDetails.alignmentNotes || job.cultureFitDetails.operatingStyle}
-                  </p>
-                </div>
-              )}
-
-              {job.skillOverlapDetails && job.skillOverlapDetails.matchedCore && (
-                <div className="text-slate-700 pt-1 border-t border-indigo-100/60">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                    Core Technical Overlap:
-                  </span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {job.skillOverlapDetails.matchedCore.slice(0, 4).map((skill, idx) => (
-                      <span key={idx} className="bg-white text-slate-700 px-1.5 py-0.5 rounded text-[10px] border border-slate-200">
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          <p className="text-xs text-slate-700 leading-relaxed line-clamp-3">
+            {job.description}
+          </p>
         </div>
 
         {/* Why You Can Get This Job */}
-        <div className="mt-3.5 pt-3 border-t border-slate-100">
+        <div className="mt-3 pt-2.5 border-t border-slate-100">
           <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             <span>Why your background fits:</span>
@@ -229,31 +179,107 @@ export const JobCard: React.FC<JobCardProps> = ({
 
         {/* Prep Tip / Gap (if any) */}
         {job.skillGaps && job.skillGaps.length > 0 && (
-          <div className="mt-2.5 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100 flex items-start gap-1.5">
+          <div className="mt-2 text-xs text-slate-500 bg-amber-50/50 p-2 rounded-lg border border-amber-100 flex items-start gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
             <span className="line-clamp-2">{job.skillGaps[0]}</span>
           </div>
         )}
+
+        {/* Secondary: Subtle Company Specs & Matching Matrix (Expanded on Demand) */}
+        <div className="mt-3 pt-2.5 border-t border-slate-100/90">
+          <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <span className="font-medium text-slate-600">Company & Algorithmic Scores</span>
+            <button
+              onClick={() => setShowAlgorithmDetails(!showAlgorithmDetails)}
+              className="text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 text-[11px] font-medium"
+            >
+              <span>{showAlgorithmDetails ? 'Hide matrix' : 'Show fit matrix'}</span>
+              {showAlgorithmDetails ? (
+                <ChevronUp className="w-3 h-3" />
+              ) : (
+                <ChevronDown className="w-3 h-3" />
+              )}
+            </button>
+          </div>
+
+          {showAlgorithmDetails && (
+            <div className="mt-2 p-2.5 bg-indigo-50/40 rounded-lg border border-indigo-100/80 space-y-2 text-xs animate-in slide-in-from-top-1 duration-150">
+              <div className="grid grid-cols-3 gap-1.5 text-center text-[10px]">
+                <div className="bg-white border border-slate-200/70 rounded-md p-1.5">
+                  <span className="text-slate-400 block font-medium">Trajectory</span>
+                  <strong className="text-slate-800 text-xs font-bold">{trajectoryScore}%</strong>
+                </div>
+                <div className="bg-white border border-slate-200/70 rounded-md p-1.5">
+                  <span className="text-slate-400 block font-medium">Culture Fit</span>
+                  <strong className="text-indigo-700 text-xs font-bold">{cultureScore}%</strong>
+                </div>
+                <div className="bg-white border border-slate-200/70 rounded-md p-1.5">
+                  <span className="text-slate-400 block font-medium">Skill Depth</span>
+                  <strong className="text-emerald-700 text-xs font-bold">{skillScore}%</strong>
+                </div>
+              </div>
+
+              {job.careerTrajectoryAnalysis && (
+                <div className="text-slate-700 pt-1 border-t border-indigo-100/60">
+                  <div className="flex items-center gap-1 font-bold text-slate-900 text-[11px]">
+                    <TrendingUp className="w-3 h-3 text-indigo-600" />
+                    <span>Career Trajectory:</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                    {job.careerTrajectoryAnalysis}
+                  </p>
+                </div>
+              )}
+
+              {job.cultureFitDetails && (
+                <div className="text-slate-700 pt-1 border-t border-indigo-100/60">
+                  <div className="flex items-center gap-1 font-bold text-slate-900 text-[11px]">
+                    <Award className="w-3 h-3 text-indigo-600" />
+                    <span>Inferred Culture ({job.cultureFitDetails.companyStage}):</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                    {job.cultureFitDetails.alignmentNotes || job.cultureFitDetails.operatingStyle}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Action Footer */}
       <div className="bg-slate-50/90 px-4 sm:px-5 py-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          {/* Quick Access Button to Research Page */}
-          <button
-            onClick={() => onResearchCompany(job)}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-indigo-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors shadow-2xs"
-            title="Open comprehensive company research dossier"
-          >
-            <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Company Intel</span>
-          </button>
+          {/* Mark as Applied Button */}
+          {onToggleApply && (
+            <button
+              onClick={() => onToggleApply(job)}
+              className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all shadow-2xs ${
+                isApplied
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+              }`}
+              title={isApplied ? 'Unmark job as applied' : 'Mark as applied for tracking'}
+            >
+              {isApplied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Applied</span>
+                </>
+              ) : (
+                <>
+                  <BookmarkCheck className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Mark Applied</span>
+                </>
+              )}
+            </button>
+          )}
 
           <button
             onClick={() => onViewDetails(job)}
-            className="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1"
+            className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors px-1.5 py-1"
           >
-            Specs
+            Details
           </button>
         </div>
 
@@ -265,7 +291,7 @@ export const JobCard: React.FC<JobCardProps> = ({
             title="Generate custom tailored cover letter"
           >
             <FileText className="w-3.5 h-3.5 text-slate-500" />
-            <span>Cover Letter</span>
+            <span className="hidden sm:inline">Cover Letter</span>
           </button>
 
           {/* Primary Action: Tailor Resume */}

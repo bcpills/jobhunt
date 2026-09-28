@@ -1,8 +1,22 @@
-import React, { useState, useMemo } from 'react';
-import { CandidateProfile, JobOpening, JobFilterState, TailoredResume, CoverLetter, CompanyResearchData } from './types';
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  CandidateProfile,
+  JobOpening,
+  JobFilterState,
+  TailoredResume,
+  CoverLetter,
+  CompanyResearchData,
+  AppliedJobRecord
+} from './types';
 import { DEFAULT_REMOTE_JOBS } from './data/defaultJobs';
-import { analyzeResume, findRemoteJobs, tailorResumeToRole, generateCoverLetter, fetchCompanyResearch } from './services/api';
-import { generateClientSideJobs } from './utils/clientResumeParser';
+import {
+  analyzeResume,
+  findRemoteJobs,
+  tailorResumeToRole,
+  generateCoverLetter,
+  fetchCompanyResearch
+} from './services/api';
+import { generateClientSideJobs, cleanCandidateName, cleanTitle } from './utils/clientResumeParser';
 import { parseSalaryRange } from './utils/salary';
 import { Navbar } from './components/Navbar';
 import { CandidateProfileBar } from './components/CandidateProfileBar';
@@ -15,10 +29,37 @@ import { JobDetailModal } from './components/JobDetailModal';
 import { ResumeViewerModal } from './components/ResumeViewerModal';
 import { CompanyResearchModal } from './components/CompanyResearchModal';
 import { ResumeLaunchpad } from './components/ResumeLaunchpad';
-import { Briefcase, RefreshCw, AlertCircle, CheckCircle2, RotateCcw, UploadCloud, FileText } from 'lucide-react';
+import {
+  Briefcase,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  RotateCcw,
+  UploadCloud,
+  FileText,
+  BookmarkCheck,
+  Save,
+  Check
+} from 'lucide-react';
+import {
+  auth,
+  signInWithGoogle,
+  signOutUser,
+  onAuthStateChanged,
+  saveResumeToAccount,
+  loadSavedResume,
+  markJobAsApplied,
+  unmarkJobAsApplied,
+  subscribeToAppliedJobs
+} from './services/firebase';
+import { User } from 'firebase/auth';
+
+const STORAGE_APPLIED_KEY = 'jobhunta_applied_jobs';
 
 export default function App() {
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
+  const [rawResumeText, setRawResumeText] = useState<string>('');
+  const [resumeFileName, setResumeFileName] = useState<string>('Candidate_Resume.pdf');
   const [jobs, setJobs] = useState<JobOpening[]>([]);
   const [filters, setFilters] = useState<JobFilterState>({
     searchQuery: '',
@@ -27,9 +68,23 @@ export default function App() {
     maxSalary: 0,
     userState: 'All States',
     onlyMyState: false,
+    onlyApplied: false,
     minMatchScore: 0,
     region: 'All Regions',
     sortBy: 'overallMatch',
+  });
+
+  // User Authentication & Persistence State
+  const [user, setUser] = useState<User | null>(null);
+  const [isSavingResume, setIsSavingResume] = useState(false);
+  const [resumeSaved, setResumeSaved] = useState(false);
+  const [appliedJobsMap, setAppliedJobsMap] = useState<Record<string, AppliedJobRecord>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_APPLIED_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
   });
 
   // Modal states
@@ -62,9 +117,174 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  // Sync applied jobs to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_APPLIED_KEY, JSON.stringify(appliedJobsMap));
+    } catch (e) {
+      console.warn('Failed to cache applied jobs to localStorage:', e);
+    }
+  }, [appliedJobsMap]);
+
+  // Firebase Auth listener and automatic resume restore
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        // Subscribe to applied jobs in Firestore
+        const unsubApplied = subscribeToAppliedJobs(currentUser.uid, (firestoreApplied) => {
+          setAppliedJobsMap((prev) => {
+            const merged = { ...prev, ...firestoreApplied };
+            return merged;
+          });
+        });
+
+        // If no profile is loaded yet in this session, check if user has a saved resume
+        if (!profile) {
+          try {
+            const savedResume = await loadSavedResume(currentUser.uid);
+            if (savedResume && savedResume.profile) {
+              setProfile(savedResume.profile);
+              setRawResumeText(savedResume.rawText || savedResume.profile.extractedResumeText || '');
+              setResumeFileName(savedResume.fileName || 'Saved_Resume.pdf');
+              setResumeSaved(true);
+
+              const effState = savedResume.profile.userState || 'NC';
+              setFilters((prev) => ({
+                ...prev,
+                userState: effState,
+              }));
+
+              showToast(`Welcome back, ${savedResume.displayName || currentUser.displayName || 'Candidate'}! Restored saved resume.`);
+              fetchJobsForProfile(savedResume.profile, effState);
+            }
+          } catch (err) {
+            console.error('Error restoring saved resume:', err);
+          }
+        }
+
+        return () => {
+          unsubApplied();
+        };
+      }
+    });
+
+    return () => unsubscribe();
+  }, [profile]);
+
+  // Sign In with Google
+  const handleSignInGoogle = async () => {
+    try {
+      const signedInUser = await signInWithGoogle();
+      showToast(`Signed in as ${signedInUser.displayName || signedInUser.email}!`);
+      
+      // If candidate already has an active resume uploaded, offer or auto-save it
+      if (profile) {
+        await handleSaveResume(signedInUser);
+      }
+    } catch (err: any) {
+      if (err?.code !== 'auth/popup-closed-by-user') {
+        console.error('Google Sign In Error:', err);
+        setErrorMessage(err.message || 'Failed to sign in with Google.');
+      }
+    }
+  };
+
+  // Sign Out
+  const handleSignOutGoogle = async () => {
+    try {
+      await signOutUser();
+      setResumeSaved(false);
+      showToast('Signed out of your Google account.');
+    } catch (err: any) {
+      console.error('Sign Out Error:', err);
+    }
+  };
+
+  // Save Resume to Google Account
+  const handleSaveResume = async (explicitUser?: User) => {
+    const activeUser = explicitUser || user;
+    if (!activeUser) {
+      // Prompt sign in first
+      try {
+        const signedIn = await signInWithGoogle();
+        if (signedIn && profile) {
+          await handleSaveResume(signedIn);
+        }
+      } catch (err: any) {
+        if (err?.code !== 'auth/popup-closed-by-user') {
+          setErrorMessage(err.message || 'Please sign in to save your resume.');
+        }
+      }
+      return;
+    }
+
+    if (!profile) {
+      showToast('Upload or ingest a resume first to save it.');
+      return;
+    }
+
+    setIsSavingResume(true);
+    try {
+      const textToSave = rawResumeText || profile.extractedResumeText || '';
+      await saveResumeToAccount(activeUser, profile, textToSave, resumeFileName);
+      setResumeSaved(true);
+      showToast('Resume saved securely to your Google Account!');
+    } catch (err: any) {
+      console.error('Failed to save resume:', err);
+      setErrorMessage('Failed to save resume to Google account.');
+    } finally {
+      setIsSavingResume(false);
+    }
+  };
+
+  // Mark / Unmark Job as Applied
+  const handleToggleApply = async (job: JobOpening) => {
+    const isCurrentlyApplied = Boolean(appliedJobsMap[job.id]);
+    const updatedMap = { ...appliedJobsMap };
+
+    if (isCurrentlyApplied) {
+      delete updatedMap[job.id];
+      setAppliedJobsMap(updatedMap);
+      showToast(`Removed "${job.title}" from applied list.`);
+
+      if (user) {
+        try {
+          await unmarkJobAsApplied(user.uid, job.id);
+        } catch (err) {
+          console.error('Failed to delete applied job from Firestore:', err);
+        }
+      }
+    } else {
+      const record: AppliedJobRecord = {
+        jobId: job.id,
+        jobTitle: job.title,
+        company: job.company,
+        location: job.location,
+        salary: job.salary,
+        matchScore: job.matchScore,
+        appliedAt: new Date().toISOString(),
+        status: 'applied',
+      };
+      updatedMap[job.id] = record;
+      setAppliedJobsMap(updatedMap);
+      showToast(`Marked "${job.title}" at ${job.company} as applied! ✓`);
+
+      if (user) {
+        try {
+          await markJobAsApplied(user.uid, record);
+        } catch (err) {
+          console.error('Failed to save applied job to Firestore:', err);
+        }
+      }
+    }
+  };
+
   // Reset / Start Over with clean state
   const handleStartOver = () => {
     setProfile(null);
+    setRawResumeText('');
+    setResumeSaved(false);
     setJobs([]);
     setSelectedJob(null);
     setTailoredResume(null);
@@ -77,6 +297,7 @@ export default function App() {
       maxSalary: 0,
       userState: 'All States',
       onlyMyState: false,
+      onlyApplied: false,
       minMatchScore: 0,
       region: 'All Regions',
       sortBy: 'overallMatch',
@@ -93,6 +314,8 @@ export default function App() {
   ) => {
     setIsAnalyzing(true);
     setErrorMessage(null);
+    setRawResumeText(text);
+    setResumeSaved(false);
     try {
       const extractedProfile = await analyzeResume({
         resumeText: text,
@@ -135,6 +358,9 @@ export default function App() {
   ) => {
     setIsAnalyzing(true);
     setErrorMessage(null);
+    setRawResumeText(clientText || '');
+    setResumeFileName(fileName);
+    setResumeSaved(false);
     try {
       const extractedProfile = await analyzeResume({
         resumeText: clientText,
@@ -169,7 +395,7 @@ export default function App() {
     }
   };
 
-  // 3. Fetch Jobs for Profile (runs advanced multi-dimensional matching algorithm)
+  // 3. Fetch Jobs for Profile
   const fetchJobsForProfile = async (
     targetProfile: CandidateProfile,
     targetState?: string,
@@ -230,7 +456,7 @@ export default function App() {
     setIsTailoring(true);
     try {
       const tailored = await tailorResumeToRole({
-        originalResumeText: profile.extractedResumeText,
+        originalResumeText: rawResumeText || profile.extractedResumeText,
         candidateProfile: profile,
         job,
       });
@@ -322,11 +548,16 @@ export default function App() {
     }
   };
 
-  // Filtered jobs computation with State-Specific & Achievable Salary Rules
+  // Filtered jobs computation
   const filteredJobs = useMemo(() => {
     const activeUserState = filters.userState || profile?.userState || 'NC';
 
     const list = jobs.filter((job) => {
+      // 0. Only Applied Jobs filter
+      if (filters.onlyApplied && !appliedJobsMap[job.id]) {
+        return false;
+      }
+
       // 1. Search query
       if (filters.searchQuery.trim()) {
         const q = filters.searchQuery.toLowerCase();
@@ -358,7 +589,6 @@ export default function App() {
       // 3. Achievable Salary Filter (Maximum Salary Ceiling)
       if (filters.maxSalary && filters.maxSalary > 0) {
         const parsed = parseSalaryRange(job.salary);
-        // If the bottom end of the salary is higher than user's ceiling, exclude it!
         if (parsed.min > filters.maxSalary) {
           return false;
         }
@@ -383,7 +613,13 @@ export default function App() {
             return false;
           }
         } else if (filters.seniority === 'Senior') {
-          if (!titleLower.includes('senior') && !titleLower.includes('lead') && !titleLower.includes('specialist') && !titleLower.includes('tier 2') && !titleLower.includes('tier ii')) {
+          if (
+            !titleLower.includes('senior') &&
+            !titleLower.includes('lead') &&
+            !titleLower.includes('specialist') &&
+            !titleLower.includes('tier 2') &&
+            !titleLower.includes('tier ii')
+          ) {
             return false;
           }
         }
@@ -441,7 +677,9 @@ export default function App() {
       // Default: overall matchScore
       return b.matchScore - a.matchScore;
     });
-  }, [jobs, filters, profile]);
+  }, [jobs, filters, profile, appliedJobsMap]);
+
+  const appliedCount = Object.keys(appliedJobsMap).length;
 
   return (
     <div className="min-h-screen bg-slate-100/60 text-slate-900 flex flex-col font-sans">
@@ -453,7 +691,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Navigation */}
+      {/* Navigation with Google Account & Save Resume */}
       <Navbar
         profile={profile}
         onOpenUpload={() => setIsUploadOpen(true)}
@@ -461,9 +699,17 @@ export default function App() {
         onRefreshJobs={() => profile && fetchJobsForProfile(profile)}
         isLoadingJobs={isLoadingJobs}
         onStartOver={handleStartOver}
+        user={user}
+        onSignInGoogle={handleSignInGoogle}
+        onSignOutGoogle={handleSignOutGoogle}
+        onSaveResume={handleSaveResume}
+        isSavingResume={isSavingResume}
+        resumeSaved={resumeSaved}
+        appliedCount={appliedCount}
+        onShowAppliedOnly={() => setFilters((prev) => ({ ...prev, onlyApplied: !prev.onlyApplied }))}
       />
 
-      {/* Candidate Profile Bar with State & Realistic Comp */}
+      {/* Candidate Profile Bar with Save Resume CTA */}
       {profile && (
         <CandidateProfileBar
           profile={profile}
@@ -471,6 +717,10 @@ export default function App() {
           onStartOver={handleStartOver}
           onUpdateState={handleUpdateProfileState}
           onUpdateSalary={handleUpdateProfileSalary}
+          user={user}
+          onSaveResume={handleSaveResume}
+          isSavingResume={isSavingResume}
+          resumeSaved={resumeSaved}
         />
       )}
 
@@ -496,7 +746,7 @@ export default function App() {
         )}
 
         {!profile ? (
-          /* Dedicated Resume Intake Launchpad with State & Realistic Salary Intake */
+          /* Dedicated Resume Intake Launchpad */
           <ResumeLaunchpad
             onAnalyzeText={handleAnalyzeText}
             onAnalyzeFile={handleAnalyzeFile}
@@ -516,16 +766,49 @@ export default function App() {
                     <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded">
                       Resume Ingested
                     </span>
-                    <span className="text-sm sm:text-base font-extrabold text-slate-900">{profile.name}</span>
-                    <span className="text-xs text-slate-600 font-medium">· {profile.title}</span>
+                    <span className="text-sm sm:text-base font-extrabold text-slate-900">
+                      {cleanCandidateName(profile.name)}
+                    </span>
+                    <span className="text-xs text-slate-600 font-medium">· {cleanTitle(profile.title)}</span>
+                    {resumeSaved && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.2 rounded-full">
+                        <Check className="w-3 h-3 stroke-[3]" />
+                        <span>Saved to Account</span>
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-slate-600">
-                    {profile.seniorityLevel} · {profile.yearsOfExperience} yrs exp · Home State: <strong className="text-slate-800">{profile.userState || 'NC'}</strong> · {jobs.length} realistic remote jobs sourced
+                    {profile.seniorityLevel} · {profile.yearsOfExperience} yrs exp · Home State:{' '}
+                    <strong className="text-slate-800">
+                      {profile.userState === 'CA' ? 'NC' : (profile.userState || 'NC')}
+                    </strong>{' '}
+                    · {jobs.length} realistic remote jobs sourced
                   </p>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 self-start md:self-center shrink-0">
+                {/* Save Resume Button */}
+                <button
+                  onClick={() => handleSaveResume()}
+                  disabled={isSavingResume}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors shadow-2xs ${
+                    resumeSaved
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                      : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                  }`}
+                  title={user ? 'Save resume to your Google account' : 'Sign in with Google to save resume'}
+                >
+                  {isSavingResume ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                  ) : resumeSaved ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5 text-indigo-600" />
+                  )}
+                  <span>{resumeSaved ? 'Resume Saved' : 'Save to Google Account'}</span>
+                </button>
+
                 <button
                   onClick={() => setIsResumeViewerOpen(true)}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors shadow-2xs"
@@ -533,6 +816,7 @@ export default function App() {
                   <FileText className="w-3.5 h-3.5 text-slate-600" />
                   <span>View Pulled Resume</span>
                 </button>
+
                 <button
                   onClick={() => setIsUploadOpen(true)}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors shadow-2xs"
@@ -540,6 +824,7 @@ export default function App() {
                   <UploadCloud className="w-3.5 h-3.5 text-indigo-600" />
                   <span>Upload Different Resume</span>
                 </button>
+
                 <button
                   onClick={handleStartOver}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-lg transition-colors shadow-2xs"
@@ -556,18 +841,36 @@ export default function App() {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-bold tracking-tight text-slate-900">
-                    Achievable Remote Opportunities ({filteredJobs.length})
+                    {filters.onlyApplied
+                      ? `Applied Opportunities (${filteredJobs.length})`
+                      : `Achievable Remote Opportunities (${filteredJobs.length})`}
                   </h2>
                   {isLoadingJobs && (
                     <RefreshCw className="w-4 h-4 text-indigo-600 animate-spin" />
                   )}
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Filtered for realistic salaries and verified state eligibility in <strong>{filters.userState || profile.userState || 'your state'}</strong>.
+                  {filters.onlyApplied
+                    ? 'Showing positions you have marked as applied for. Keep track of status and interview prep.'
+                    : `Filtered for realistic salaries and verified state eligibility in ${filters.userState || profile.userState || 'your state'}. Showing job descriptions first.`}
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
+                {appliedCount > 0 && (
+                  <button
+                    onClick={() => setFilters((prev) => ({ ...prev, onlyApplied: !prev.onlyApplied }))}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                      filters.onlyApplied
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <BookmarkCheck className="w-3.5 h-3.5" />
+                    <span>{filters.onlyApplied ? 'Show All Jobs' : `View Applied (${appliedCount})`}</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => setIsUploadOpen(true)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-2xs"
@@ -584,6 +887,7 @@ export default function App() {
               onChange={setFilters}
               totalJobs={jobs.length}
               filteredCount={filteredJobs.length}
+              appliedCount={appliedCount}
               userState={profile.userState || 'NC'}
             />
 
@@ -595,6 +899,8 @@ export default function App() {
                     key={job.id}
                     job={job}
                     userState={profile.userState || filters.userState || 'NC'}
+                    isApplied={Boolean(appliedJobsMap[job.id])}
+                    onToggleApply={handleToggleApply}
                     onTailorResume={handleTailorResume}
                     onGenerateCoverLetter={(j) => handleGenerateCoverLetter(j)}
                     onViewDetails={handleViewJobDetails}
@@ -608,9 +914,15 @@ export default function App() {
                   <Briefcase className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-800">No matching remote openings for these filters</h3>
+                  <h3 className="text-base font-bold text-slate-800">
+                    {filters.onlyApplied
+                      ? 'No jobs marked as applied yet'
+                      : 'No matching remote openings for these filters'}
+                  </h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    Try switching to "All US States (Nationwide)", widening your salary ceiling, or resetting filters to see all {jobs.length} available roles.
+                    {filters.onlyApplied
+                      ? 'Click "Mark Applied" on any job card to track your applications here.'
+                      : 'Try switching to "All US States (Nationwide)", widening your salary ceiling, or resetting filters to see all available roles.'}
                   </p>
                 </div>
                 <button
@@ -622,6 +934,7 @@ export default function App() {
                       maxSalary: 0,
                       userState: 'All States',
                       onlyMyState: false,
+                      onlyApplied: false,
                       minMatchScore: 0,
                       region: 'All Regions',
                       sortBy: 'overallMatch',
@@ -699,6 +1012,8 @@ export default function App() {
         job={selectedJob}
         candidateProfile={profile}
         userState={profile?.userState || filters.userState || 'NC'}
+        isApplied={Boolean(selectedJob && appliedJobsMap[selectedJob.id])}
+        onToggleApply={handleToggleApply}
         onTailorResume={(job) => {
           setIsJobDetailModalOpen(false);
           handleTailorResume(job);
