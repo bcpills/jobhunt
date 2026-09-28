@@ -59,134 +59,151 @@ function cleanPdfString(raw: string): string {
 }
 
 /**
+ * Safely decompress RFC 1950 zlib FlateDecode stream bytes using Web DecompressionStream API.
+ * Validates zlib magic bytes before decompression to avoid 'incorrect header check' errors,
+ * and handles stream errors cleanly without orphan unhandled promise rejections.
+ */
+async function safelyDecompressZlib(bytes: Uint8Array): Promise<string> {
+  // RFC 1950 header check:
+  // Byte 0: 0x78 (deflate compression with 32KB window)
+  // Byte 1: flags such that (byte0 * 256 + byte1) % 31 === 0
+  if (
+    bytes.length < 6 ||
+    bytes[0] !== 0x78 ||
+    (((bytes[0] << 8) | bytes[1]) % 31 !== 0)
+  ) {
+    return '';
+  }
+
+  if (typeof DecompressionStream !== 'function' || typeof Response === 'undefined') {
+    return '';
+  }
+
+  try {
+    const blob = new Blob([bytes.buffer as ArrayBuffer]);
+    const stream = blob.stream().pipeThrough(new DecompressionStream('deflate'));
+    const response = new Response(stream);
+    const arrayBuffer = await response.arrayBuffer();
+    return new TextDecoder('utf-8', { fatal: false }).decode(arrayBuffer);
+  } catch {
+    // Non-text, corrupt, or truncated stream - safely ignore without unhandled promise rejections
+    return '';
+  }
+}
+
+/**
  * Parses PDF text streams from an ArrayBuffer directly in the browser
- * Extracts both uncompressed and FlateDecode compressed streams using modern Web DecompressionStream API.
+ * Extracts uncompressed operators and safely decompresses valid FlateDecode streams.
  */
 async function extractTextFromPdfArrayBuffer(buffer: ArrayBuffer): Promise<string> {
-  const bytes = new Uint8Array(buffer);
-  const textChunks: string[] = [];
+  try {
+    const bytes = new Uint8Array(buffer);
+    const textChunks: string[] = [];
 
-  // Convert buffer to binary string representation for pattern matching
-  let binaryStr = '';
-  const len = bytes.length;
-  // Read in 64KB blocks for memory efficiency on mobile
-  const blockSize = 65536;
-  for (let i = 0; i < len; i += blockSize) {
-    const chunk = bytes.subarray(i, Math.min(i + blockSize, len));
-    binaryStr += String.fromCharCode.apply(null, Array.from(chunk));
-  }
-
-  // 1. Look for uncompressed text streams: (text) Tj or [(text)] TJ
-  const tjMatches = binaryStr.match(/\(([^)]{2,})\)\s*Tj/g);
-  if (tjMatches && tjMatches.length > 5) {
-    for (const match of tjMatches) {
-      const inner = match.replace(/\)\s*Tj$/, '').replace(/^\(/, '');
-      const cleaned = cleanPdfString(inner);
-      if (cleaned.length > 1) {
-        textChunks.push(cleaned);
+    // Convert buffer to binary string representation for operator pattern matching
+    let binaryStr = '';
+    const len = bytes.length;
+    // Process in safe blocks to avoid stack overflow
+    const blockSize = 32768;
+    for (let i = 0; i < len; i += blockSize) {
+      const chunk = bytes.subarray(i, Math.min(i + blockSize, len));
+      let sub = '';
+      for (let j = 0; j < chunk.length; j++) {
+        sub += String.fromCharCode(chunk[j]);
       }
+      binaryStr += sub;
     }
-  }
 
-  const tjArrayMatches = binaryStr.match(/\[([^\]]{3,})\]\s*TJ/g);
-  if (tjArrayMatches && tjArrayMatches.length > 5) {
-    for (const match of tjArrayMatches) {
-      const parts = match.match(/\(([^)]*)\)/g);
-      if (parts) {
-        const line = parts
-          .map((p) => cleanPdfString(p.slice(1, -1)))
-          .join('')
-          .trim();
-        if (line.length > 1) {
-          textChunks.push(line);
+    // 1. Look for uncompressed text streams: (text) Tj or [(text)] TJ
+    const tjMatches = binaryStr.match(/\(([^)]{2,})\)\s*Tj/g);
+    if (tjMatches && tjMatches.length > 5) {
+      for (const match of tjMatches) {
+        const inner = match.replace(/\)\s*Tj$/, '').replace(/^\(/, '');
+        const cleaned = cleanPdfString(inner);
+        if (cleaned.length > 1) {
+          textChunks.push(cleaned);
         }
       }
     }
-  }
 
-  // 2. If uncompressed extraction gave good content (>100 chars), return it
-  if (textChunks.length > 10) {
-    const combined = textChunks.join(' ').replace(/\s{2,}/g, ' ').trim();
-    if (combined.length > 100) {
-      return combined;
-    }
-  }
-
-  // 3. Scan for FlateDecode compressed streams and decompress via Web DecompressionStream
-  if (typeof DecompressionStream === 'function') {
-    try {
-      const streamRegex = /stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g;
-      let match;
-      let streamCount = 0;
-
-      while ((match = streamRegex.exec(binaryStr)) !== null && streamCount < 25) {
-        streamCount++;
-        const streamData = match[1];
-        if (!streamData || streamData.length < 20) continue;
-
-        // Convert slice back to Uint8Array
-        const streamBytes = new Uint8Array(streamData.length);
-        for (let j = 0; j < streamData.length; j++) {
-          streamBytes[j] = streamData.charCodeAt(j);
-        }
-
-        try {
-          const ds = new DecompressionStream('deflate');
-          const writer = ds.writable.getWriter();
-          writer.write(streamBytes);
-          writer.close();
-
-          const reader = ds.readable.getReader();
-          let decompressed = '';
-          const decoder = new TextDecoder('utf-8', { fatal: false });
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            decompressed += decoder.decode(value, { stream: true });
+    const tjArrayMatches = binaryStr.match(/\[([^\]]{3,})\]\s*TJ/g);
+    if (tjArrayMatches && tjArrayMatches.length > 5) {
+      for (const match of tjArrayMatches) {
+        const parts = match.match(/\(([^)]*)\)/g);
+        if (parts) {
+          const line = parts
+            .map((p) => cleanPdfString(p.slice(1, -1)))
+            .join('')
+            .trim();
+          if (line.length > 1) {
+            textChunks.push(line);
           }
+        }
+      }
+    }
 
-          if (decompressed && decompressed.length > 20) {
-            // Extract text from decompressed PDF operators
-            const subTj = decompressed.match(/\(([^)]{2,})\)\s*Tj/g);
-            if (subTj) {
-              for (const m of subTj) {
-                const inner = m.replace(/\)\s*Tj$/, '').replace(/^\(/, '');
-                textChunks.push(cleanPdfString(inner));
-              }
-            }
-            const subTJ = decompressed.match(/\[([^\]]{3,})\]\s*TJ/g);
-            if (subTJ) {
-              for (const m of subTJ) {
-                const parts = m.match(/\(([^)]*)\)/g);
-                if (parts) {
-                  textChunks.push(parts.map((p) => cleanPdfString(p.slice(1, -1))).join(''));
-                }
-              }
+    // 2. If uncompressed extraction gave sufficient content (>100 chars), return it
+    if (textChunks.length > 10) {
+      const combined = textChunks.join(' ').replace(/\s{2,}/g, ' ').trim();
+      if (combined.length > 100) {
+        return combined;
+      }
+    }
+
+    // 3. Scan for FlateDecode streams directly from binary byte offsets
+    const streamRegex = /stream[\r\n]+/g;
+    let match: RegExpExecArray | null;
+    let streamCount = 0;
+
+    while ((match = streamRegex.exec(binaryStr)) !== null && streamCount < 30) {
+      streamCount++;
+      const streamStart = match.index + match[0].length;
+      const endStreamIndex = binaryStr.indexOf('endstream', streamStart);
+      if (endStreamIndex === -1 || endStreamIndex - streamStart < 10) continue;
+
+      let streamEnd = endStreamIndex;
+      if (binaryStr[streamEnd - 1] === '\n') streamEnd--;
+      if (binaryStr[streamEnd - 1] === '\r') streamEnd--;
+
+      const streamBytes = bytes.subarray(streamStart, streamEnd);
+      // Validate zlib header before calling decompression API
+      const decompressed = await safelyDecompressZlib(streamBytes);
+      if (decompressed && decompressed.length > 20) {
+        const subTj = decompressed.match(/\(([^)]{2,})\)\s*Tj/g);
+        if (subTj) {
+          for (const m of subTj) {
+            const inner = m.replace(/\)\s*Tj$/, '').replace(/^\(/, '');
+            textChunks.push(cleanPdfString(inner));
+          }
+        }
+        const subTJ = decompressed.match(/\[([^\]]{3,})\]\s*TJ/g);
+        if (subTJ) {
+          for (const m of subTJ) {
+            const parts = m.match(/\(([^)]*)\)/g);
+            if (parts) {
+              textChunks.push(parts.map((p) => cleanPdfString(p.slice(1, -1))).join(''));
             }
           }
-        } catch {
-          // Stream might not be zlib/deflate or could be an image stream; continue safely
         }
       }
-    } catch (err) {
-      console.warn('DecompressionStream PDF extraction notice:', err);
     }
-  }
 
-  // 4. Return combined chunks if found
-  if (textChunks.length > 0) {
-    const combined = textChunks.join(' ').replace(/\s{2,}/g, ' ').trim();
-    if (combined.length > 50) {
-      return combined;
+    // 4. Return combined chunks if found
+    if (textChunks.length > 0) {
+      const combined = textChunks.join(' ').replace(/\s{2,}/g, ' ').trim();
+      if (combined.length > 50) {
+        return combined;
+      }
     }
-  }
 
-  // 5. Printable ASCII fallback
-  const printable = binaryStr.replace(/[^\x20-\x7E\t\n\r]/g, ' ');
-  const words = printable.split(/\s+/).filter((w) => w.length > 2 && /^[a-zA-Z0-9#+.-]+$/.test(w));
-  if (words.length > 40) {
-    return words.join(' ').slice(0, 10000);
+    // 5. Printable ASCII fallback
+    const printable = binaryStr.replace(/[^\x20-\x7E\t\n\r]/g, ' ');
+    const words = printable.split(/\s+/).filter((w) => w.length > 2 && /^[a-zA-Z0-9#+.-]+$/.test(w));
+    if (words.length > 40) {
+      return words.join(' ').slice(0, 10000);
+    }
+  } catch (err) {
+    console.log('PDF text parsing handled gracefully:', err);
   }
 
   return '';

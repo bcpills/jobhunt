@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
 import mammoth from 'mammoth';
 import * as pdfParseModule from 'pdf-parse';
 
@@ -69,21 +69,32 @@ async function callGeminiWithFallback(params: {
   config?: any;
   models?: string[];
 }): Promise<any> {
-  const models = params.models || ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const models = params.models || ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
   let lastError: any = null;
 
   for (const model of models) {
+    const configWithThinking = {
+      ...(params.config || {}),
+      ...(model.startsWith('gemini-3')
+        ? {
+            thinkingConfig: {
+              thinkingLevel: model === 'gemini-3.1-flash-lite' ? ThinkingLevel.MINIMAL : ThinkingLevel.LOW,
+            },
+          }
+        : {}),
+    };
+
     // Retry up to 2 attempts with exponential backoff on demand spikes (503 / 429)
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(`Model ${model} timed out during demand spike (503)`)), 8500)
+          setTimeout(() => reject(new Error(`Model ${model} request exceeded 25s limit`)), 25000)
         );
         const response: any = await Promise.race([
           ai.models.generateContent({
             model,
             contents: params.contents,
-            config: params.config,
+            config: configWithThinking,
           }),
           timeoutPromise,
         ]);
@@ -96,6 +107,7 @@ async function callGeminiWithFallback(params: {
         const isTemporary =
           msg.includes('503') ||
           msg.includes('429') ||
+          msg.includes('exceeded') ||
           msg.includes('timed out') ||
           msg.includes('high demand') ||
           msg.includes('Spikes in demand') ||
@@ -103,12 +115,11 @@ async function callGeminiWithFallback(params: {
           msg.includes('ResourceExhausted');
 
         if (isTemporary && attempt === 0) {
-          console.warn(`Model ${model} experiencing momentary spike in demand (503/429), retrying in 750ms...`);
-          await sleep(750);
+          await sleep(600);
           continue;
         }
 
-        console.warn(`Model ${model} unavailable, trying alternate model:`, msg.slice(0, 140));
+        console.log(`[AI Routing] Model ${model} unavailable (high demand / 503), switching to alternate model...`);
         break;
       }
     }
