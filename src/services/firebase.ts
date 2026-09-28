@@ -3,6 +3,8 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
   User
@@ -95,12 +97,74 @@ export async function testConnection(): Promise<void> {
 // Execute connection test on module load
 testConnection();
 
-// Google Authentication
-export async function signInWithGoogle(): Promise<User> {
+export interface AuthDomainDiagnosis {
+  isUnauthorizedDomain: boolean;
+  currentHostname: string;
+  projectId: string;
+  consoleUrl: string;
+  message: string;
+}
+
+export function diagnoseAuthError(error: any): AuthDomainDiagnosis | null {
+  const code = error?.code || '';
+  const message = error?.message || '';
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isUnauthorized = code === 'auth/unauthorized-domain' || message.includes('unauthorized-domain');
+
+  if (isUnauthorized) {
+    return {
+      isUnauthorizedDomain: true,
+      currentHostname: hostname,
+      projectId: firebaseConfig.projectId,
+      consoleUrl: `https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/settings`,
+      message: `Your Netlify or custom domain "${hostname}" is not yet in the Firebase Authorized Domains list.`
+    };
+  }
+
+  return null;
+}
+
+// Check redirect result on load (important for mobile & Netlify redirects)
+export async function checkRedirectAuthResult(): Promise<User | null> {
   try {
+    const result = await getRedirectResult(auth);
+    if (result && result.user) {
+      return result.user;
+    }
+  } catch (err: any) {
+    console.warn('Redirect sign-in notice:', err);
+    throw err;
+  }
+  return null;
+}
+
+// Google Authentication with Mobile & Popup-Blocker Fallbacks
+export async function signInWithGoogle(useRedirectFallbackOnMobile = false): Promise<User> {
+  const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  try {
+    if (useRedirectFallbackOnMobile && isMobile) {
+      // In mobile web contexts where popups are blocked by OS, use redirect
+      await signInWithRedirect(auth, googleProvider);
+      // Returns never as the page unloads, but typed as User
+      return new Promise(() => {}) as unknown as User;
+    }
+
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
-  } catch (error) {
+  } catch (error: any) {
+    // If popup was blocked on mobile or desktop, attempt redirect
+    if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
+      console.warn('Popup blocked by browser, falling back to redirect authentication flow...');
+      try {
+        await signInWithRedirect(auth, googleProvider);
+        return new Promise(() => {}) as unknown as User;
+      } catch (redirectErr) {
+        console.error('Redirect sign-in error:', redirectErr);
+        throw redirectErr;
+      }
+    }
+
     console.error('Failed to sign in with Google:', error);
     throw error;
   }
@@ -115,6 +179,44 @@ export async function signOutUser(): Promise<void> {
   }
 }
 
+// Local Storage Fallback for Netlify / Offline Users
+const LOCAL_STORAGE_SAVED_RESUME_KEY = 'jobhunta_saved_resume_local';
+
+export function saveResumeLocally(
+  profile: CandidateProfile,
+  rawText: string,
+  fileName: string
+): SavedUserResume {
+  const data: SavedUserResume = {
+    userId: 'local-guest-user',
+    email: 'local.session@jobhunta.local',
+    displayName: profile.name || 'Local Candidate',
+    photoURL: '',
+    fileName: fileName || 'Uploaded_Resume.pdf',
+    rawText: rawText || '',
+    profile: profile,
+    updatedAt: new Date().toISOString()
+  };
+  try {
+    localStorage.setItem(LOCAL_STORAGE_SAVED_RESUME_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn('Could not save resume to localStorage:', e);
+  }
+  return data;
+}
+
+export function loadSavedResumeLocally(): SavedUserResume | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_SAVED_RESUME_KEY);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('Could not read saved resume from localStorage:', e);
+  }
+  return null;
+}
+
 // Saved Resume Services
 export async function saveResumeToAccount(
   user: User,
@@ -122,6 +224,9 @@ export async function saveResumeToAccount(
   rawText: string,
   fileName: string
 ): Promise<void> {
+  // Always update local cache first
+  saveResumeLocally(profile, rawText, fileName);
+
   const userDocRef = doc(db, 'users', user.uid);
   const data: SavedUserResume = {
     userId: user.uid,

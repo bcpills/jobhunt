@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Briefcase,
   UploadCloud,
@@ -6,11 +6,16 @@ import {
   RotateCcw,
   MapPin,
   DollarSign,
-  CloudCheck,
   Check,
   LogOut,
   Save,
-  BookmarkCheck
+  BookmarkCheck,
+  Moon,
+  Sun,
+  Menu,
+  X,
+  ShieldAlert,
+  HardDrive
 } from 'lucide-react';
 import { CandidateProfile } from '../types';
 import { User } from 'firebase/auth';
@@ -23,6 +28,7 @@ interface NavbarProps {
   isLoadingJobs: boolean;
   onStartOver?: () => void;
   user: User | null;
+  isLocalMode?: boolean;
   onSignInGoogle: () => void;
   onSignOutGoogle: () => void;
   onSaveResume?: () => void;
@@ -30,6 +36,9 @@ interface NavbarProps {
   resumeSaved?: boolean;
   appliedCount?: number;
   onShowAppliedOnly?: () => void;
+  isDark: boolean;
+  onToggleTheme: () => void;
+  onOpenNetlifyHelp?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -40,6 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isLoadingJobs,
   onStartOver,
   user,
+  isLocalMode = false,
   onSignInGoogle,
   onSignOutGoogle,
   onSaveResume,
@@ -47,40 +57,47 @@ export const Navbar: React.FC<NavbarProps> = ({
   resumeSaved = false,
   appliedCount = 0,
   onShowAppliedOnly,
+  isDark,
+  onToggleTheme,
+  onOpenNetlifyHelp,
 }) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200/80">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-sm">
-            <Briefcase className="w-5 h-5 text-indigo-400" />
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-900 dark:bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+            <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400 dark:text-white" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-lg tracking-tight text-slate-900">JobHunta</span>
-              <span className="text-[11px] font-bold tracking-wide text-indigo-700 bg-indigo-50 border border-indigo-100/80 px-2 py-0.5 rounded">
-                Remote Job Engine
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-extrabold text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">
+                JobHunta
+              </span>
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-wide text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-100 dark:border-indigo-800 px-1.5 sm:px-2 py-0.5 rounded">
+                Remote Engine
               </span>
             </div>
-            <p className="text-xs text-slate-500 hidden sm:block">
-              Sourcing realistic remote openings · Instant tailoring · Cover letters
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden md:block">
+              Realistic remote openings · Instant tailoring · Cover letters
             </p>
           </div>
         </div>
 
-        {/* Actions & Controls */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Desktop Navigation & Actions */}
+        <div className="hidden lg:flex items-center gap-2.5">
           {profile && (
             <>
               {/* Location & Salary Indicators */}
-              <div className="hidden xl:flex items-center gap-2 text-xs font-medium text-slate-600 bg-slate-100/80 px-3 py-1.5 rounded-lg border border-slate-200/60">
-                <span className="flex items-center gap-1 text-slate-700">
-                  <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+              <div className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100/90 dark:bg-slate-800/90 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                <span className="flex items-center gap-1 text-slate-700 dark:text-slate-200">
+                  <MapPin className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                   <span>{profile.userState || 'Remote (All US)'}</span>
                 </span>
-                <span className="text-slate-300">·</span>
-                <span className="flex items-center gap-0.5 text-emerald-700 font-semibold">
+                <span className="text-slate-300 dark:text-slate-600">·</span>
+                <span className="flex items-center gap-0.5 text-emerald-700 dark:text-emerald-400 font-semibold">
                   <DollarSign className="w-3.5 h-3.5" />
                   <span>
                     ${Math.round((profile.targetSalaryMin || profile.salaryExpectationRange?.min || 50000) / 1000)}k - $
@@ -93,10 +110,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               {appliedCount > 0 && onShowAppliedOnly && (
                 <button
                   onClick={onShowAppliedOnly}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 rounded-lg transition-colors shadow-2xs"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 rounded-lg transition-colors shadow-2xs"
                   title="View your applied jobs"
                 >
-                  <BookmarkCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <BookmarkCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>Applied ({appliedCount})</span>
                 </button>
               )}
@@ -108,17 +125,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                   disabled={isSavingResume}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all shadow-2xs ${
                     resumeSaved
-                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
-                      : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
+                      : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100'
                   }`}
-                  title={user ? 'Save current resume to your Google account' : 'Sign in with Google to save resume'}
+                  title={user ? 'Save current resume to your Google account' : 'Save resume'}
                 >
                   {isSavingResume ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
                   ) : resumeSaved ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 stroke-[3]" />
                   ) : (
-                    <Save className="w-3.5 h-3.5 text-indigo-600" />
+                    <Save className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                   )}
                   <span>{resumeSaved ? 'Resume Saved' : 'Save Resume'}</span>
                 </button>
@@ -127,74 +144,118 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={onRefreshJobs}
                 disabled={isLoadingJobs}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-xs disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 hover:text-slate-900 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors shadow-xs disabled:opacity-50"
                 title="Pull fresh remote job opportunities"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingJobs ? 'animate-spin text-indigo-600' : ''}`} />
-                <span>Refresh Jobs</span>
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingJobs ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''}`} />
+                <span>Refresh</span>
               </button>
 
               {onStartOver && (
                 <button
                   onClick={onStartOver}
-                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100/80 border border-rose-200 rounded-lg transition-colors shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-rose-700 dark:text-rose-400 hover:text-rose-900 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100/80 border border-rose-200 dark:border-rose-900/60 rounded-lg transition-colors shadow-xs"
                   title="Clear profile and start over with a fresh resume"
                 >
-                  <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Start Over</span>
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                  <span>Reset</span>
                 </button>
               )}
             </>
           )}
 
-          {/* Change or Upload Resume Button */}
+          {/* Switch or Upload Resume Button */}
           <button
             onClick={onOpenUpload}
             disabled={isAnalyzing}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] rounded-lg transition-all shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-[0.98] rounded-lg transition-all shadow-2xs"
           >
-            <UploadCloud className="w-3.5 h-3.5 text-indigo-600" />
+            <UploadCloud className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
             <span>{profile ? 'Switch Resume' : 'Upload'}</span>
           </button>
+        </div>
 
-          {/* Google Account Section */}
+        {/* Right side controls: Theme Toggle, Google Account / Login, Mobile Menu Button */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Netlify Help Shortcut Button (if on Netlify or custom host) */}
+          {onOpenNetlifyHelp && (
+            <button
+              onClick={onOpenNetlifyHelp}
+              className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 border border-amber-200 dark:border-amber-900/60 rounded-lg transition-colors"
+              title="Netlify Domain Authorization Instructions"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span className="hidden xl:inline">Netlify Auth Help</span>
+            </button>
+          )}
+
+          {/* Dark Mode Toggle Button */}
+          <button
+            onClick={onToggleTheme}
+            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label="Toggle dark mode"
+          >
+            {isDark ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-slate-700" />
+            )}
+          </button>
+
+          {/* Account status: Google Account OR Local Storage Mode */}
           {user ? (
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+            <div className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 {user.photoURL ? (
                   <img
                     src={user.photoURL}
                     alt={user.displayName || 'Google User'}
-                    className="w-8 h-8 rounded-full border border-slate-300 object-cover shadow-2xs"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-300 dark:border-slate-700 object-cover shadow-2xs"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
                     {(user.displayName || user.email || 'U').slice(0, 1).toUpperCase()}
                   </div>
                 )}
-                <div className="hidden lg:block text-left text-xs leading-tight">
-                  <div className="font-semibold text-slate-800 truncate max-w-[120px]">
+                <div className="hidden sm:block text-left text-xs leading-tight">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[100px] xl:max-w-[140px]">
                     {user.displayName || user.email?.split('@')[0]}
                   </div>
-                  <div className="text-[10px] text-slate-400">Google Account</div>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500">Google Connected</div>
                 </div>
               </div>
 
               <button
                 onClick={onSignOutGoogle}
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                 title="Sign out of Google"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+            </div>
+          ) : isLocalMode ? (
+            <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 dark:border-slate-800">
+              <div
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300"
+                title="Your resume and applications are saved locally in your browser storage"
+              >
+                <HardDrive className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="hidden sm:inline">Browser Mode</span>
+              </div>
+              <button
+                onClick={onSignInGoogle}
+                className="px-2 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                Connect Google
               </button>
             </div>
           ) : (
             <button
               onClick={onSignInGoogle}
-              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg shadow-2xs transition-all active:scale-[0.98]"
-              title="Sign in with your Google account to save your resume and applied jobs"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 border border-slate-300 dark:border-slate-700 rounded-lg shadow-2xs transition-all active:scale-[0.98]"
+              title="Sign in with Google to sync your resume and applications"
             >
-              {/* Google Colored Logo SVG */}
               <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
@@ -213,11 +274,127 @@ export const Navbar: React.FC<NavbarProps> = ({
                   d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.27 2.61 1.26 6.58l4.02 3.13c.95-2.83 3.6-4.96 6.72-4.96z"
                 />
               </svg>
-              <span>Sign in with Google</span>
+              <span className="hidden sm:inline">Sign In with Google</span>
+              <span className="sm:hidden">Sign In</span>
             </button>
           )}
+
+          {/* Mobile Menu Hamburger Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            aria-label="Open mobile menu"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Drawer Navigation Menu */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 space-y-3 animate-in slide-in-from-top-2 duration-150 shadow-lg">
+          {profile && (
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl space-y-2 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200">
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>{profile.userState || 'Remote'}</span>
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  ${Math.round((profile.targetSalaryMin || 50000) / 1000)}k - $
+                  {Math.round((profile.targetSalaryMax || 78000) / 1000)}k
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            {appliedCount > 0 && onShowAppliedOnly && (
+              <button
+                onClick={() => {
+                  onShowAppliedOnly();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-xl"
+              >
+                <BookmarkCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Applied ({appliedCount})</span>
+              </button>
+            )}
+
+            {profile && onSaveResume && (
+              <button
+                onClick={() => {
+                  onSaveResume();
+                  setMobileMenuOpen(false);
+                }}
+                disabled={isSavingResume}
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-xl"
+              >
+                {resumeSaved ? (
+                  <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 stroke-[3]" />
+                ) : (
+                  <Save className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                )}
+                <span>{resumeSaved ? 'Resume Saved' : 'Save Resume'}</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => {
+                onOpenUpload();
+                setMobileMenuOpen(false);
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl"
+            >
+              <UploadCloud className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>{profile ? 'Switch Resume' : 'Upload Resume'}</span>
+            </button>
+
+            {profile && (
+              <button
+                onClick={() => {
+                  onRefreshJobs();
+                  setMobileMenuOpen(false);
+                }}
+                disabled={isLoadingJobs}
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoadingJobs ? 'animate-spin' : ''}`} />
+                <span>Refresh Jobs</span>
+              </button>
+            )}
+          </div>
+
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+            {onOpenNetlifyHelp && (
+              <button
+                onClick={() => {
+                  onOpenNetlifyHelp();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                <span>Netlify Auth Guide</span>
+              </button>
+            )}
+
+            {profile && onStartOver && (
+              <button
+                onClick={() => {
+                  onStartOver();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold ml-auto"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Intake</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 };

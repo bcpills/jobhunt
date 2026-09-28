@@ -92,7 +92,7 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
         profile,
         editedText: editableText,
       });
-      setExportNotice('✓ Cover Letter Word (.docx) exported!');
+      setExportNotice('✓ Word (.docx) Cover Letter exported!');
       setTimeout(() => setExportNotice(null), 3500);
     } catch (err) {
       console.error('DOCX export error:', err);
@@ -109,10 +109,10 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Cover_Letter_${job.company.replace(/\s+/g, '_')}_${cleanCandidateName(profile?.name || 'Candidate').replace(/\s+/g, '_')}.txt`;
+    link.download = `Cover_Letter_${job.company.replace(/\s+/g, '_')}_${job.title.replace(/\s+/g, '_')}.txt`;
     link.click();
     URL.revokeObjectURL(url);
-    setExportNotice('Downloaded plain text (.txt) file');
+    setExportNotice('Downloaded plain text file');
     setTimeout(() => setExportNotice(null), 2500);
   };
 
@@ -121,260 +121,198 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-3xl w-full h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-slate-900 dark:text-slate-100 transition-colors">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
-          <div>
+        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/40 flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="p-1 rounded-md bg-indigo-100 text-indigo-700">
-                <FileText className="w-4 h-4" />
+              <span className="p-1 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300">
+                <Sparkles className="w-4 h-4" />
               </span>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                Cover Letter for {job.title}
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">
+                Cover Letter for {job.company}
               </h2>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Target Company: <strong className="text-slate-800">{job.company}</strong> · {job.workArrangement}
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+              Position: <strong className="text-slate-800 dark:text-slate-200">{job.title}</strong> · Tailored from resume insights
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setShowPreferences(!showPreferences)}
-              className={`p-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${
-                showPreferences
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                  : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'
-              }`}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors shadow-2xs"
             >
-              <Sliders className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Customize Tone</span>
+              <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span className="hidden sm:inline">Preferences</span>
             </button>
-
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200/60 transition-colors"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Customization Drawer / Panel */}
+        {/* Preferences Drawer */}
         {showPreferences && (
-          <div className="p-4 bg-indigo-50/40 border-b border-indigo-100/80 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs animate-in slide-in-from-top-2 duration-150">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Tone & Voice</label>
-              <select
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
-                className="w-full text-xs p-1.5 bg-white border border-slate-200 rounded-lg text-slate-800"
-              >
-                <option value="Professional & Confident">Professional & Confident</option>
-                <option value="Modern & Concise">Modern & Concise</option>
-                <option value="High-Impact & Direct">High-Impact & Direct</option>
-                <option value="Warm & Mission-Driven">Warm & Mission-Driven</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Length</label>
-              <select
-                value={length}
-                onChange={(e) => setLength(e.target.value)}
-                className="w-full text-xs p-1.5 bg-white border border-slate-200 rounded-lg text-slate-800"
-              >
-                <option value="Concise (~250 words)">Concise (~250 words)</option>
-                <option value="Balanced (~350 words)">Balanced (~350 words)</option>
-                <option value="Comprehensive (~450 words)">Comprehensive (~450 words)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Custom Highlight</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="e.g. emphasize async leadership..."
-                  value={customNotes}
-                  onChange={(e) => setCustomNotes(e.target.value)}
-                  className="w-full text-xs p-1.5 bg-white border border-slate-200 rounded-lg text-slate-800"
-                />
-                <button
-                  onClick={() => onRegenerate({ tone, length, customNotes })}
-                  disabled={isLoading}
-                  className="px-3 py-1 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 shrink-0"
+          <div className="p-4 bg-indigo-50/70 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/60 space-y-3 animate-in slide-in-from-top-2 duration-150 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Tone of Voice:</label>
+                <select
+                  value={tone}
+                  onChange={(e) => setTone(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-medium"
                 >
-                  Apply
-                </button>
+                  <option value="Professional & Confident">Professional & Confident</option>
+                  <option value="Technical & Metrics-Driven">Technical & Metrics-Driven</option>
+                  <option value="Warm & Mission-Aligned">Warm & Mission-Aligned</option>
+                  <option value="Concise Executive">Concise Executive</option>
+                </select>
               </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Letter Length:</label>
+                <select
+                  value={length}
+                  onChange={(e) => setLength(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-medium"
+                >
+                  <option value="Short & Punchy (~220 words)">Short & Punchy (~220 words)</option>
+                  <option value="Balanced (~350 words)">Balanced (~350 words)</option>
+                  <option value="In-Depth Technical (~450 words)">In-Depth Technical (~450 words)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Custom Talking Points or Notes (Optional):</label>
+              <input
+                type="text"
+                value={customNotes}
+                onChange={(e) => setCustomNotes(e.target.value)}
+                placeholder="e.g., Emphasize ServiceNow migration or remote troubleshooting"
+                className="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => {
+                  setShowPreferences(false);
+                  onRegenerate({ tone, length, customNotes });
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-all shadow-xs"
+              >
+                Regenerate with Preferences
+              </button>
             </div>
           </div>
         )}
 
-        {/* Notice Toast */}
+        {/* Notice toast */}
         {exportNotice && (
-          <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-2 text-xs font-semibold text-emerald-800 flex items-center justify-between animate-in fade-in">
+          <div className="bg-emerald-50 dark:bg-emerald-950/60 border-b border-emerald-200 dark:border-emerald-800 px-6 py-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileCheck2 className="w-4 h-4 text-emerald-600" />
+              <FileCheck2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>{exportNotice}</span>
             </div>
-            <button
-              onClick={() => setExportNotice(null)}
-              className="text-emerald-600 hover:text-emerald-900 text-xs"
-            >
+            <button onClick={() => setExportNotice(null)} className="text-emerald-600 hover:underline">
               Dismiss
             </button>
           </div>
         )}
 
-        {/* Loading Spinner */}
+        {/* Loading state */}
         {isLoading && (
           <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
-            <div className="w-12 h-12 rounded-full border-3 border-indigo-600 border-t-transparent animate-spin" />
-            <div className="text-center space-y-1">
-              <h3 className="text-sm font-bold text-slate-800">
-                Crafting High-Conversion Cover Letter...
-              </h3>
-              <p className="text-xs text-slate-500 max-w-sm">
-                Formulating strong opening hook for {job.company}, mapping your proven wins to their exact requirements, and emphasizing remote async execution.
-              </p>
-            </div>
+            <div className="w-12 h-12 rounded-full border-3 border-indigo-600 dark:border-indigo-400 border-t-transparent animate-spin" />
+            <p className="text-xs text-slate-500 dark:text-slate-400">Crafting tailored cover letter for {job.company}...</p>
           </div>
         )}
 
-        {/* Empty / Error Fallback */}
-        {!isLoading && !coverLetter && (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
-              <AlertCircle className="w-6 h-6" />
-            </div>
-            <div className="space-y-1 max-w-sm">
-              <h3 className="text-sm font-bold text-slate-800">
-                Could Not Generate Cover Letter
-              </h3>
-              <p className="text-xs text-slate-500">
-                The cover letter generation encountered an issue. Click below to regenerate with customized tone settings.
-              </p>
-            </div>
-            <button
-              onClick={() => onRegenerate({ tone, length, customNotes })}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Generate Cover Letter Now</span>
-            </button>
-          </div>
-        )}
-
-        {/* Content Viewer */}
+        {/* Content Body */}
         {!isLoading && coverLetter && (
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            {/* Highlights Used Card */}
-            {coverLetter.keyHighlightsUsed && coverLetter.keyHighlightsUsed.length > 0 && (
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Evidence Weaved Into Letter:</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {coverLetter.keyHighlightsUsed.map((h, i) => (
-                    <span key={i} className="bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded text-[11px]">
-                      {h}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Editable Letter Viewer */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>You can edit the letter text directly below before exporting to PDF or Word (.docx).</span>
-                <span>{editableText.length} characters</span>
-              </div>
-              <textarea
-                value={editableText}
-                onChange={(e) => setEditableText(e.target.value)}
-                rows={18}
-                className="w-full font-serif text-sm leading-relaxed p-6 rounded-xl border border-slate-200 bg-white text-slate-900 shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800"
-              />
-            </div>
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
+            <textarea
+              value={editableText}
+              onChange={(e) => setEditableText(e.target.value)}
+              rows={16}
+              className="w-full font-serif text-xs sm:text-sm leading-relaxed p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            />
           </div>
         )}
 
         {/* Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-950/60 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => onRegenerate({ tone, length, customNotes })}
               disabled={isLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+              className="min-h-[40px] inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:text-slate-900 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               <span>Regenerate</span>
             </button>
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+              className="min-h-[40px] inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
               title="Print letter preview"
             >
-              <Printer className="w-3.5 h-3.5 text-slate-500" />
+              <Printer className="w-3.5 h-3.5" />
               <span>Print</span>
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-            {/* Copy Button */}
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <button
               onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-2xs"
+              className="min-h-[40px] inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs"
             >
               {copied ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-emerald-700 font-semibold">Copied!</span>
+                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-emerald-700 dark:text-emerald-300 font-semibold">Copied!</span>
                 </>
               ) : (
                 <>
-                  <Copy className="w-3.5 h-3.5 text-slate-500" />
+                  <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                   <span>Copy</span>
                 </>
               )}
             </button>
 
-            {/* Plain text fallback */}
             <button
               onClick={handleDownloadTxt}
-              className="inline-flex items-center gap-1 px-2.5 py-2 text-xs font-medium text-slate-500 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-2xs"
+              className="min-h-[40px] inline-flex items-center gap-1 px-2.5 py-2 text-xs font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-750 transition-colors shadow-2xs"
               title="Download raw plain text"
             >
               <Download className="w-3.5 h-3.5 text-slate-400" />
               <span>.txt</span>
             </button>
 
-            {/* PRIMARY 1: Export Word (.docx) */}
             <button
               onClick={handleExportDocx}
               disabled={isExportingDocx || isExportingPdf}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-800 hover:text-slate-950 bg-white border border-blue-300/80 hover:bg-blue-50/50 rounded-lg transition-all shadow-2xs disabled:opacity-50"
+              className="flex-1 sm:flex-initial min-h-[40px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-blue-300/80 dark:border-blue-800 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 rounded-xl transition-all shadow-2xs disabled:opacity-50"
             >
               {isExportingDocx ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
               ) : (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-700 tracking-wide">
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 tracking-wide">
                   DOCX
                 </span>
               )}
-              <span>Export Word (.docx)</span>
+              <span>Export Word</span>
             </button>
 
-            {/* PRIMARY 2: Export PDF */}
             <button
               onClick={handleExportPdf}
               disabled={isExportingPdf || isExportingDocx}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all shadow-xs disabled:opacity-50"
+              className="flex-1 sm:flex-initial min-h-[40px] inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-xl transition-all shadow-xs disabled:opacity-50"
             >
               {isExportingPdf ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-300" />
@@ -383,7 +321,7 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
                   PDF
                 </span>
               )}
-              <span>Export Formatted PDF</span>
+              <span>Export PDF</span>
             </button>
           </div>
         </div>

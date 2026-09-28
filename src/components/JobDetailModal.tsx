@@ -55,64 +55,64 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const isEligibleInState = isNationwide || (userState && job.eligibleStates?.includes(userState));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-slate-900 dark:text-slate-100 transition-colors">
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-slate-200 bg-slate-50/80 flex items-start justify-between gap-4">
+        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/40 flex items-start justify-between gap-3">
           <div className="space-y-1.5 flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                 {job.company}
               </span>
               <button
                 onClick={() => onResearchCompany(job)}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded transition-colors"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800 px-2 py-0.5 rounded transition-colors"
                 title="Open company research dossier"
               >
                 <Building2 className="w-3 h-3" />
                 <span>Research Company</span>
               </button>
-              <span className="text-slate-300">·</span>
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/80">
+              <span className="text-slate-300 dark:text-slate-700">·</span>
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800">
                 {job.matchScore}% Match ({job.matchTier})
               </span>
 
               {/* Applied Indicator Badge */}
               {isApplied && (
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100/90 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/90 dark:bg-emerald-950/90 border border-emerald-300 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
                   <Check className="w-3 h-3 stroke-[3]" />
                   <span>Applied</span>
                 </span>
               )}
             </div>
 
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 leading-snug">
+            <h2 className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white leading-snug">
               {job.title}
             </h2>
 
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 pt-0.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 dark:text-slate-300 pt-0.5">
               <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                <MapPin className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                 {job.location}
               </span>
-              <span className="text-slate-300">·</span>
-              <span className="font-semibold text-slate-800">{job.salary}</span>
-              <span className="text-slate-300">·</span>
-              <span className="text-indigo-700 font-medium">{job.workArrangement}</span>
+              <span className="text-slate-300 dark:text-slate-700">·</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-200">{job.salary}</span>
+              <span className="text-slate-300 dark:text-slate-700">·</span>
+              <span className="text-indigo-700 dark:text-indigo-400 font-medium">{job.workArrangement}</span>
             </div>
 
             {/* State Eligibility Note */}
             <div className="pt-1 flex items-center gap-2">
               {isNationwide ? (
-                <span className="text-[11px] text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-medium">
+                <span className="text-[11px] text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded font-medium">
                   🌐 Nationwide Remote: Open to all 50 US States
                 </span>
               ) : isEligibleInState ? (
-                <span className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-medium">
+                <span className="text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded font-medium">
                   🟢 Eligible for Remote Work in {userState} · {job.stateEligibilityNote || 'Open to your state'}
                 </span>
               ) : (
-                <span className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-medium">
+                <span className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded font-medium">
                   📍 State-Specific Remote: {job.stateEligibilityNote || (job.eligibleStates ? `Eligible in ${job.eligibleStates.join(', ')}` : 'Restricted states')}
                 </span>
               )}
@@ -123,10 +123,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             {onToggleApply && (
               <button
                 onClick={() => onToggleApply(job)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                   isApplied
                     ? 'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700'
-                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`}
                 title={isApplied ? 'Click to unmark as applied' : 'Mark this job as applied for'}
               >
@@ -137,8 +137,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   </>
                 ) : (
                   <>
-                    <BookmarkCheck className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Mark as Applied</span>
+                    <BookmarkCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>Mark Applied</span>
                   </>
                 )}
               </button>
@@ -146,7 +146,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200/60 transition-colors"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -154,43 +154,43 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         </div>
 
         {/* View Switcher: Job Description First! */}
-        <div className="flex items-center border-b border-slate-200 bg-white px-6">
+        <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 sm:px-6">
           <button
             onClick={() => setActiveTab('description')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
+            className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 sm:gap-2 ${
               activeTab === 'description'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Job Description & Role Details</span>
+            <span>Job Description & Role</span>
           </button>
           <button
             onClick={() => setActiveTab('companySpecs')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 ${
+            className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 sm:gap-2 ${
               activeTab === 'companySpecs'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Company Specs & Match Analysis</span>
+            <span>Company Specs & Fit</span>
           </button>
         </div>
 
         {/* Body content */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5 sm:space-y-6">
           {activeTab === 'description' ? (
             <>
               {/* PRIMARY VIEW: Job Description & Qualifications First */}
               <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                   <span>Job Description & Overview</span>
                 </h3>
-                <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-4">
-                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                <div className="bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4">
+                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
                     {job.description}
                   </p>
                 </div>
@@ -199,13 +199,13 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               {/* Core Responsibilities */}
               {job.keyResponsibilities && job.keyResponsibilities.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2.5">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2">
                     Core Responsibilities
                   </h4>
-                  <ul className="space-y-2 text-xs sm:text-sm text-slate-700 bg-white rounded-xl border border-slate-200/80 p-4">
+                  <ul className="space-y-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4">
                     {job.keyResponsibilities.map((item, idx) => (
                       <li key={idx} className="flex items-start gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 mt-2 shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 mt-2 shrink-0" />
                         <span className="leading-normal">{item}</span>
                       </li>
                     ))}
@@ -216,13 +216,13 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               {/* Requirements & Qualifications */}
               {job.requirements && job.requirements.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2.5">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2">
                     Requirements & Qualifications
                   </h4>
-                  <ul className="space-y-2 text-xs sm:text-sm text-slate-700 bg-white rounded-xl border border-slate-200/80 p-4">
+                  <ul className="space-y-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4">
                     {job.requirements.map((item, idx) => (
                       <li key={idx} className="flex items-start gap-2.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-2 shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 mt-2 shrink-0" />
                         <span className="leading-normal">{item}</span>
                       </li>
                     ))}
@@ -232,167 +232,122 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
               {/* Fit & Gap Assessment */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-4 space-y-2">
-                  <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <div className="bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60 rounded-2xl p-4 space-y-2">
+                  <h4 className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>Why You Are Qualified</span>
                   </h4>
-                  <ul className="space-y-1.5 text-xs text-slate-700">
+                  <ul className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
                     {(job.matchReasoning || []).map((reason, idx) => (
                       <li key={idx} className="flex items-start gap-1.5">
-                        <span className="text-emerald-600 font-bold">•</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">•</span>
                         <span>{reason}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-4 space-y-2">
-                  <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                <div className="bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 rounded-2xl p-4 space-y-2">
+                  <h4 className="text-xs font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                     <span>Preparation & Focus Points</span>
                   </h4>
-                  <ul className="space-y-1.5 text-xs text-slate-700">
+                  <ul className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
                     {(job.skillGaps || ['Review their primary public documentation before interview stage']).map((gap, idx) => (
                       <li key={idx} className="flex items-start gap-1.5">
-                        <span className="text-amber-600 font-bold">•</span>
+                        <span className="text-amber-600 dark:text-amber-400 font-bold">•</span>
                         <span>{gap}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
               </div>
-
-              {/* Remote Perks & Benefits */}
-              {job.benefits && job.benefits.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Gift className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Remote Perks & Benefits</span>
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {job.benefits.map((b, idx) => (
-                      <span
-                        key={idx}
-                        className="text-xs text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/60"
-                      >
-                        {b}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
             </>
           ) : (
             <>
-              {/* SECONDARY VIEW: Company Specs, Algorithm Breakdown & Salary Benchmark */}
-              <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4.5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-indigo-600" />
-                    <h4 className="text-xs font-bold text-indigo-950 uppercase tracking-wider">
-                      Personalized Algorithm Matching Matrix
-                    </h4>
+              {/* SECONDARY VIEW: Company Specs & Algorithmic Fit */}
+              <div className="space-y-6">
+                {/* 3-Pillar Score Cards */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
+                  <div className="p-3 sm:p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60">
+                    <span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                      Career Trajectory
+                    </span>
+                    <strong className="text-xl sm:text-2xl font-extrabold text-indigo-700 dark:text-indigo-400 mt-1 block">
+                      {trajectoryScore}%
+                    </strong>
                   </div>
-                  <span className="text-[11px] font-bold text-indigo-700">
-                    Composite Fit: {job.matchScore}%
-                  </span>
+
+                  <div className="p-3 sm:p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60">
+                    <span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                      Culture Fit
+                    </span>
+                    <strong className="text-xl sm:text-2xl font-extrabold text-blue-700 dark:text-blue-400 mt-1 block">
+                      {cultureScore}%
+                    </strong>
+                  </div>
+
+                  <div className="p-3 sm:p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60">
+                    <span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                      Skill Depth
+                    </span>
+                    <strong className="text-xl sm:text-2xl font-extrabold text-emerald-700 dark:text-emerald-400 mt-1 block">
+                      {skillScore}%
+                    </strong>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-center text-xs pt-1">
-                  <div className="bg-white border border-indigo-100/90 rounded-lg p-2.5 shadow-2xs">
-                    <span className="text-[10px] text-slate-500 font-semibold uppercase block">Career Trajectory</span>
-                    <span className="text-sm font-extrabold text-slate-900 block mt-0.5">{trajectoryScore}%</span>
-                    <span className="text-[10px] text-indigo-600">Promotion Scope</span>
-                  </div>
-                  <div className="bg-white border border-indigo-100/90 rounded-lg p-2.5 shadow-2xs">
-                    <span className="text-[10px] text-slate-500 font-semibold uppercase block">Culture & Workstyle</span>
-                    <span className="text-sm font-extrabold text-indigo-700 block mt-0.5">{cultureScore}%</span>
-                    <span className="text-[10px] text-indigo-600">Async / Autonomy</span>
-                  </div>
-                  <div className="bg-white border border-indigo-100/90 rounded-lg p-2.5 shadow-2xs">
-                    <span className="text-[10px] text-slate-500 font-semibold uppercase block">Skill Parity</span>
-                    <span className="text-sm font-extrabold text-emerald-700 block mt-0.5">{skillScore}%</span>
-                    <span className="text-[10px] text-emerald-600">Production Tech</span>
-                  </div>
+                {/* Salary Benchmark */}
+                <div className="bg-slate-50/70 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2">
+                    Salary Benchmark vs Market
+                  </h4>
+                  <SalaryBenchmarkChart
+                    job={job}
+                    candidateProfile={candidateProfile}
+                  />
                 </div>
 
-                {/* Trajectory & Culture Explanations */}
-                <div className="space-y-2 pt-1 text-xs text-slate-700">
-                  {job.careerTrajectoryAnalysis && (
-                    <div className="flex items-start gap-2 bg-white/80 p-2.5 rounded-lg border border-indigo-100/60">
-                      <TrendingUp className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="text-slate-900 block font-semibold">Career Trajectory Alignment:</strong>
-                        <span className="text-slate-600">{job.careerTrajectoryAnalysis}</span>
-                      </div>
-                    </div>
-                  )}
+                {/* Company Specs Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1.5">
+                    <span className="text-slate-400 dark:text-slate-500 font-medium">Remote Policy & State Rules</span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200">{job.workArrangement}</p>
+                    <p className="text-slate-500 dark:text-slate-400">{job.stateEligibilityNote || 'Eligible in designated remote states'}</p>
+                  </div>
 
-                  {job.cultureFitDetails && (
-                    <div className="flex items-start gap-2 bg-white/80 p-2.5 rounded-lg border border-indigo-100/60">
-                      <Award className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="text-slate-900 block font-semibold">Inferred Culture Alignment ({job.cultureFitDetails.companyStage}):</strong>
-                        <span className="text-slate-600">
-                          {job.cultureFitDetails.alignmentNotes || job.cultureFitDetails.operatingStyle}
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                  <div className="bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1.5">
+                    <span className="text-slate-400 dark:text-slate-500 font-medium">Experience Level & Hierarchy</span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200">{candidateProfile?.seniorityLevel || job.matchTier || 'Mid-Level / Specialist'}</p>
+                    <p className="text-slate-500 dark:text-slate-400">Aligned with realistic candidate skill profile</p>
+                  </div>
                 </div>
               </div>
-
-              {/* Recharts Salary Benchmark Visualization */}
-              <SalaryBenchmarkChart job={job} candidateProfile={candidateProfile} />
             </>
           )}
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            {onToggleApply && (
-              <button
-                onClick={() => onToggleApply(job)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  isApplied
-                    ? 'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700'
-                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                {isApplied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                    <span>Marked Applied</span>
-                  </>
-                ) : (
-                  <>
-                    <BookmarkCheck className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Mark as Applied</span>
-                  </>
-                )}
-              </button>
-            )}
-
+        {/* Footer with Mobile-Friendly Sticky Action Buttons */}
+        <div className="p-3 sm:p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => {
                 onClose();
                 onResearchCompany(job);
               }}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200/80 px-3 py-1.5 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 bg-indigo-50/80 dark:bg-indigo-950/60 hover:bg-indigo-100 border border-indigo-200/80 dark:border-indigo-800 px-3 py-2 rounded-xl transition-colors min-h-[40px]"
             >
               <Building2 className="w-3.5 h-3.5" />
-              <span>Full Company Dossier</span>
+              <span>Company Dossier</span>
             </button>
 
             <a
               href={job.applyUrl || `https://www.google.com/search?q=${encodeURIComponent(`${job.company} ${job.title} remote careers`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors px-2 py-2"
             >
-              <span>Search Official Careers</span>
+              <span>Search Careers</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -403,10 +358,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 onClose();
                 onGenerateCoverLetter(job);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-2xs"
+              className="flex-1 sm:flex-initial min-h-[42px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:text-slate-900 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs"
             >
-              <FileText className="w-3.5 h-3.5 text-slate-500" />
-              <span>Generate Cover Letter</span>
+              <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+              <span>Cover Letter</span>
             </button>
 
             <button
@@ -414,10 +369,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 onClose();
                 onTailorResume(job);
               }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-xs"
+              className="flex-1 sm:flex-initial min-h-[42px] inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] rounded-xl transition-all shadow-xs"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-              <span>Tailor Resume to Role</span>
+              <span>Tailor Resume</span>
             </button>
           </div>
         </div>

@@ -123,28 +123,28 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-4xl w-full h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full h-[92vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-slate-900 dark:text-slate-100 transition-colors">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
-          <div>
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/40 flex items-center justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="p-1 rounded-md bg-indigo-100 text-indigo-700">
+              <span className="p-1 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300">
                 <Sparkles className="w-4 h-4" />
               </span>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900">
+              <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white truncate">
                 Tailored Resume for {job.title}
               </h2>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Target Company: <strong className="text-slate-800">{job.company}</strong> · {job.workArrangement}
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+              Target Company: <strong className="text-slate-800 dark:text-slate-200">{job.company}</strong> · {job.workArrangement}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200/60 transition-colors"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -154,12 +154,12 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
         {/* Loading State */}
         {isLoading && (
           <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
-            <div className="w-12 h-12 rounded-full border-3 border-indigo-600 border-t-transparent animate-spin" />
+            <div className="w-12 h-12 rounded-full border-3 border-indigo-600 dark:border-indigo-400 border-t-transparent animate-spin" />
             <div className="text-center space-y-1">
-              <h3 className="text-sm font-bold text-slate-800">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
                 Tailoring Resume to {job.company}'s Requirements...
               </h3>
-              <p className="text-xs text-slate-500 max-w-sm">
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
                 Aligning work experience bullets with target responsibilities, integrating key technical competencies, and sharpening achievement metrics.
               </p>
             </div>
@@ -169,21 +169,21 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
         {/* Empty / Error Fallback */}
         {!isLoading && !tailoredResume && (
           <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center">
               <AlertCircle className="w-6 h-6" />
             </div>
             <div className="space-y-1 max-w-sm">
-              <h3 className="text-sm font-bold text-slate-800">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
                 Could Not Generate Tailored Resume
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 We encountered an issue communicating with the AI tailoring engine. You can retry with a single click.
               </p>
             </div>
             {onRetry && (
               <button
                 onClick={onRetry}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Retry Resume Tailoring</span>
@@ -196,41 +196,37 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
         {!isLoading && tailoredResume && (
           <>
             {/* Impact Metric & Strategy Banner */}
-            <div className="px-6 py-3 bg-indigo-50/60 border-b border-indigo-100 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-md border border-indigo-200 shadow-2xs font-semibold">
-                  <span className="text-slate-500">Original Match: {tailoredResume.matchScoreBefore}%</span>
-                  <ArrowRight className="w-3 h-3 text-indigo-500" />
-                  <span className="text-emerald-700 font-bold">{tailoredResume.matchScoreAfter}% ATS Alignment</span>
+            <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-indigo-50/60 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/60 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800 shadow-2xs font-semibold">
+                  <span className="text-slate-500 dark:text-slate-400">Original: {tailoredResume.matchScoreBefore}%</span>
+                  <ArrowRight className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
+                  <span className="text-emerald-700 dark:text-emerald-400 font-bold">{tailoredResume.matchScoreAfter}% ATS Alignment</span>
                 </div>
-
-                <span className="text-slate-500 hidden sm:inline">
-                  {tailoredResume.atsKeywordsAdded?.length || 0} target ATS keywords integrated
-                </span>
               </div>
 
               {/* Tabs */}
-              <div className="flex items-center gap-1 bg-white/80 p-0.5 rounded-lg border border-indigo-200/60">
+              <div className="flex items-center gap-1 bg-white/80 dark:bg-slate-800 p-0.5 rounded-lg border border-indigo-200/60 dark:border-slate-700">
                 <button
                   onClick={() => setActiveTab('diff')}
-                  className={`px-3 py-1 rounded-md font-medium text-xs transition-colors ${
-                    activeTab === 'diff' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  className={`px-2.5 sm:px-3 py-1 rounded-md font-medium text-xs transition-colors ${
+                    activeTab === 'diff' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                   }`}
                 >
                   Experience Diff
                 </button>
                 <button
                   onClick={() => setActiveTab('full')}
-                  className={`px-3 py-1 rounded-md font-medium text-xs transition-colors ${
-                    activeTab === 'full' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  className={`px-2.5 sm:px-3 py-1 rounded-md font-medium text-xs transition-colors ${
+                    activeTab === 'full' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                   }`}
                 >
-                  Full Resume Text
+                  Full Resume
                 </button>
                 <button
                   onClick={() => setActiveTab('print')}
-                  className={`px-3 py-1 rounded-md font-medium text-xs transition-colors ${
-                    activeTab === 'print' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  className={`px-2.5 sm:px-3 py-1 rounded-md font-medium text-xs transition-colors ${
+                    activeTab === 'print' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                   }`}
                 >
                   ATS Document View
@@ -240,14 +236,14 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
 
             {/* Notification Notice Toast if any */}
             {exportNotice && (
-              <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-2 text-xs font-semibold text-emerald-800 flex items-center justify-between animate-in fade-in">
+              <div className="bg-emerald-50 dark:bg-emerald-950/60 border-b border-emerald-200 dark:border-emerald-800 px-6 py-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center justify-between animate-in fade-in">
                 <div className="flex items-center gap-2">
-                  <FileCheck2 className="w-4 h-4 text-emerald-600" />
+                  <FileCheck2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>{exportNotice}</span>
                 </div>
                 <button
                   onClick={() => setExportNotice(null)}
-                  className="text-emerald-600 hover:text-emerald-900 text-xs"
+                  className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-900 text-xs"
                 >
                   Dismiss
                 </button>
@@ -255,21 +251,21 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
             )}
 
             {/* Content Body */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
               {/* TAB 1: Diff & Strategy */}
               {activeTab === 'diff' && (
                 <div className="space-y-6">
                   {/* Strategy Notes */}
                   {tailoredResume.tailoringStrategyNotes && (
-                    <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-4 space-y-2">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
+                    <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 space-y-2">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <TrendingUp className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                         <span>Tailoring Strategy for this Opening</span>
                       </h4>
-                      <ul className="space-y-1 text-xs text-slate-600">
+                      <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-400">
                         {tailoredResume.tailoringStrategyNotes.map((note, idx) => (
                           <li key={idx} className="flex items-start gap-1.5">
-                            <span className="text-indigo-600 font-bold">•</span>
+                            <span className="text-indigo-600 dark:text-indigo-400 font-bold">•</span>
                             <span>{note}</span>
                           </li>
                         ))}
@@ -280,16 +276,16 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                   {/* ATS Keywords Integrated */}
                   {tailoredResume.atsKeywordsAdded && tailoredResume.atsKeywordsAdded.length > 0 && (
                     <div>
-                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                      <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
                         Target Keywords Injected from Job Description
                       </h4>
                       <div className="flex flex-wrap gap-1.5">
                         {tailoredResume.atsKeywordsAdded.map((kw, idx) => (
                           <span
                             key={idx}
-                            className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-md flex items-center gap-1"
+                            className="text-xs font-medium text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 px-2.5 py-0.5 rounded-md flex items-center gap-1"
                           >
-                            <Check className="w-3 h-3 text-emerald-600" />
+                            <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                             {kw}
                           </span>
                         ))}
@@ -299,11 +295,11 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
 
                   {/* Targeted Summary */}
                   {tailoredResume.targetedSummary && (
-                    <div className="border border-slate-200 rounded-xl p-4 bg-white space-y-1.5">
-                      <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">
+                    <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-white dark:bg-slate-800/50 space-y-1.5">
+                      <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
                         Tailored Executive Summary
                       </span>
-                      <p className="text-xs text-slate-800 leading-relaxed font-serif">
+                      <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-serif">
                         {tailoredResume.targetedSummary}
                       </p>
                     </div>
@@ -311,35 +307,35 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
 
                   {/* Experience Bullet Comparisons */}
                   <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                       Elevated Work Experience & Key Achievements
                     </h4>
 
                     {(tailoredResume.tailoredExperience || []).map((exp, expIdx) => (
-                      <div key={expIdx} className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-                        <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-900">
+                      <div key={expIdx} className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-800/40">
+                        <div className="bg-slate-50 dark:bg-slate-800/80 px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">
                             {exp.role} · {exp.company}
                           </span>
-                          <span className="text-[11px] text-slate-500">{exp.dates}</span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">{exp.dates}</span>
                         </div>
 
                         <div className="p-4 space-y-3">
                           {exp.bullets.map((b, bIdx) => (
                             <div key={bIdx} className="space-y-1.5 text-xs">
                               {b.original && (
-                                <div className="text-slate-400 pl-3 border-l-2 border-slate-200">
-                                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Original</span>
+                                <div className="text-slate-400 dark:text-slate-500 pl-3 border-l-2 border-slate-200 dark:border-slate-700">
+                                  <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block">Original</span>
                                   <span>{b.original}</span>
                                 </div>
                               )}
-                              <div className="text-slate-800 pl-3 border-l-2 border-indigo-600 bg-indigo-50/20 py-1.5 rounded-r">
-                                <span className="text-[10px] uppercase font-bold text-indigo-700 block flex items-center gap-1">
+                              <div className="text-slate-800 dark:text-slate-200 pl-3 border-l-2 border-indigo-600 dark:border-indigo-400 bg-indigo-50/20 dark:bg-indigo-950/30 py-1.5 rounded-r">
+                                <span className="text-[10px] uppercase font-bold text-indigo-700 dark:text-indigo-400 block flex items-center gap-1">
                                   <Sparkles className="w-2.5 h-2.5" /> Tailored Achievement
                                 </span>
-                                <span className="font-medium text-slate-900">{b.tailored}</span>
+                                <span className="font-medium text-slate-900 dark:text-white">{b.tailored}</span>
                                 {b.rationale && (
-                                  <p className="text-[11px] text-slate-500 mt-1 italic">
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 italic">
                                     Why it converts: {b.rationale}
                                   </p>
                                 )}
@@ -353,124 +349,78 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                 </div>
               )}
 
-              {/* TAB 2: Full Editable Markdown */}
+              {/* TAB 2: Full Resume Markdown Editor */}
               {activeTab === 'full' && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>
-                      You can edit any line directly below before exporting to PDF or Word (.docx).
-                    </span>
-                    <span>{editableMarkdown.length} characters</span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                    <span>Directly edit any section before downloading</span>
+                    <button
+                      onClick={handleCopy}
+                      className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{copied ? 'Copied' : 'Copy All'}</span>
+                    </button>
                   </div>
                   <textarea
                     value={editableMarkdown}
                     onChange={(e) => setEditableMarkdown(e.target.value)}
                     rows={20}
-                    className="w-full font-mono text-xs p-4 rounded-xl border border-slate-200 bg-slate-50/40 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 leading-relaxed"
+                    className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 font-mono text-xs text-slate-800 dark:text-slate-200 leading-relaxed focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   />
                 </div>
               )}
 
-              {/* TAB 3: ATS Print View */}
+              {/* TAB 3: ATS Document View */}
               {activeTab === 'print' && (
-                <div className="space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200">
-                    <span className="text-xs text-slate-500">
-                      Standard single-column ATS typography optimized for corporate ATS parsers and human reviewers.
-                    </span>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleExportPdf}
-                        disabled={isExportingPdf}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-all disabled:opacity-50"
-                      >
-                        {isExportingPdf ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <FileDown className="w-3.5 h-3.5" />
-                        )}
-                        <span>Download PDF</span>
-                      </button>
-
-                      <button
-                        onClick={handleExportDocx}
-                        disabled={isExportingDocx}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs transition-all disabled:opacity-50"
-                      >
-                        {isExportingDocx ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
-                        ) : (
-                          <FileText className="w-3.5 h-3.5 text-blue-600" />
-                        )}
-                        <span>Download Word (.docx)</span>
-                      </button>
-
-                      <button
-                        onClick={handlePrint}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 bg-white border border-slate-200 rounded-lg transition-all"
-                        title="Print browser preview"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                        <span>Print</span>
-                      </button>
-                    </div>
+                <div className="printable-resume max-w-2xl mx-auto bg-white text-slate-900 p-6 sm:p-8 rounded-2xl shadow-xs border border-slate-200 font-serif leading-relaxed text-xs">
+                  <div className="text-center pb-4 border-b border-slate-200 space-y-1">
+                    <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-wider text-slate-900">
+                      {cleanCandidateName(profile?.name || 'Joseph Thomas')}
+                    </h1>
+                    <p className="text-xs text-slate-600 font-sans">
+                      {extractContactLine(profile, profile?.extractedResumeText)}
+                    </p>
                   </div>
 
-                  <div className="p-8 bg-white border border-slate-300 rounded-xl shadow-xs font-serif text-slate-900 max-w-2xl mx-auto space-y-4 printable-resume">
-                    <div className="text-center pb-3 border-b border-slate-200 space-y-1">
-                      <h2 className="text-2xl font-bold tracking-tight font-sans text-slate-900">
-                        {cleanCandidateName(profile?.name || 'Joseph Thomas').toUpperCase()}
-                      </h2>
-                      <p className="text-xs text-slate-600 font-sans font-medium">
-                        {extractContactLine(profile, profile?.extractedResumeText)}
-                      </p>
-                    </div>
-
-                    <div className="text-xs leading-relaxed font-sans space-y-3 whitespace-pre-line text-slate-800">
-                      {editableMarkdown
-                        .replace(/^#[^\n]*\n*/i, '')
-                        .replace(/^(?:(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[^\n•]+•[^\n]+)\n*/i, '')
-                        .trim()}
-                    </div>
+                  <div className="mt-4 whitespace-pre-line text-slate-800">
+                    {editableMarkdown}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Footer Toolbar */}
-            <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <span className="text-xs text-slate-500 hidden sm:inline">
+            {/* Footer Toolbar - Mobile Friendly Sticky Stack */}
+            <div className="px-4 sm:px-6 py-3 bg-slate-50 dark:bg-slate-950/60 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+              <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">
                 Tailored for {job.company} · Ready to submit
               </span>
 
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-                {/* Secondary: Copy */}
+              <div className="flex flex-wrap items-center gap-2 justify-end">
                 <button
                   onClick={handleCopy}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-2xs"
+                  className="min-h-[40px] inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:text-slate-900 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs"
                   title="Copy full text"
                 >
                   {copied ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-emerald-700 font-semibold">Copied!</span>
+                      <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-emerald-700 dark:text-emerald-300 font-semibold">Copied!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-3.5 h-3.5 text-slate-500" />
-                      <span className="hidden md:inline">Copy Text</span>
+                      <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                      <span>Copy</span>
                     </>
                   )}
                 </button>
 
-                {/* Secondary: Download .md */}
                 <button
                   onClick={handleDownloadMarkdown}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors shadow-2xs"
+                  className="min-h-[40px] inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-2xs"
                   title="Download Markdown"
                 >
-                  <Download className="w-3.5 h-3.5 text-slate-500" />
+                  <Download className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                   <span>.md</span>
                 </button>
 
@@ -478,23 +428,23 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                 <button
                   onClick={handleExportDocx}
                   disabled={isExportingDocx || isExportingPdf}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-800 hover:text-slate-950 bg-white border border-blue-300/80 hover:bg-blue-50/50 rounded-lg transition-all shadow-2xs disabled:opacity-50"
+                  className="flex-1 sm:flex-initial min-h-[40px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:text-slate-950 bg-white dark:bg-slate-800 border border-blue-300/80 dark:border-blue-800 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 rounded-xl transition-all shadow-2xs disabled:opacity-50"
                 >
                   {isExportingDocx ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600 dark:text-blue-400" />
                   ) : (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-700 tracking-wide">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 tracking-wide">
                       DOCX
                     </span>
                   )}
-                  <span>Export Word (.docx)</span>
+                  <span>Export Word</span>
                 </button>
 
                 {/* PRIMARY 2: Export PDF */}
                 <button
                   onClick={handleExportPdf}
                   disabled={isExportingPdf || isExportingDocx}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all shadow-xs disabled:opacity-50"
+                  className="flex-1 sm:flex-initial min-h-[40px] inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-xl transition-all shadow-xs disabled:opacity-50"
                 >
                   {isExportingPdf ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-300" />
@@ -503,7 +453,7 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                       PDF
                     </span>
                   )}
-                  <span>Export Nicely Formatted PDF</span>
+                  <span>Export PDF</span>
                 </button>
               </div>
             </div>
