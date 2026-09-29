@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CompanyResearchData, JobOpening } from '../types';
+import { getJobPostingUrl } from '../utils/clientResumeParser';
 import {
   X,
   Building2,
@@ -96,7 +97,19 @@ export const CompanyResearchModal: React.FC<CompanyResearchModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Direct link to original job posting */}
+            <a
+              href={getJobPostingUrl(job)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-xs"
+              title="Open official job posting in a new tab"
+            >
+              <span>Job Posting</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+
             {onRefreshResearch && (
               <button
                 onClick={onRefreshResearch}
@@ -488,13 +501,14 @@ export const CompanyResearchModal: React.FC<CompanyResearchModalProps> = ({
         {/* Footer Actions */}
         <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-950/60 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
           <a
-            href={job.applyUrl || `https://www.google.com/search?q=${encodeURIComponent(`${job.company} remote careers`)}`}
+            href={getJobPostingUrl(job)}
             target="_blank"
             rel="noopener noreferrer"
-            className="min-h-[40px] inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+            className="min-h-[40px] inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-white bg-indigo-50/90 dark:bg-indigo-950/70 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/90 dark:border-indigo-800 px-3.5 py-2 rounded-xl transition-colors"
+            title={`Open official job posting and careers for ${job.company}`}
           >
-            <span>Visit {job.company} Careers</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>Open {job.company} Job Posting</span>
           </a>
 
           <div className="flex items-center gap-2">

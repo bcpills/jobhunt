@@ -840,10 +840,29 @@ export function generateClientSideJobs(profile: CandidateProfile, filters?: any)
     }
   ];
 
+  const CAREER_PAGE_URLS: Record<string, string> = {
+    'canonical.com': 'https://canonical.com/careers',
+    'redhat.com': 'https://www.redhat.com/en/jobs',
+    'gitlab.com': 'https://about.gitlab.com/jobs/',
+    'automattic.com': 'https://automattic.com/work-with-us/',
+    'zapier.com': 'https://zapier.com/jobs',
+    'invisionapp.com': 'https://www.invisionapp.com/company/careers',
+    'buffer.com': 'https://buffer.com/journey',
+    '37signals.com': 'https://37signals.com/jobs',
+    'cisco.com': 'https://jobs.cisco.com/',
+    'squarespace.com': 'https://www.squarespace.com/about/careers',
+    'unchealthcare.org': 'https://jobs.unchealthcare.org/',
+    'sas.com': 'https://www.sas.com/en_us/careers.html',
+    'elastic.co': 'https://www.elastic.co/about/careers/',
+    'take2games.com': 'https://www.take2games.com/careers/'
+  };
+
   return companies.map((c, idx) => {
     const jobMin = Math.round(minSal + c.baseOffset);
     const jobMax = Math.round(maxSal + c.baseOffset + (idx % 3 === 0 ? 5000 : 0));
     const isEligibleInUserState = c.states.includes('All US') || c.states.includes(userState);
+
+    const careerUrl = CAREER_PAGE_URLS[c.domain] || `https://${c.domain}/careers`;
 
     return {
       id: `client-job-${c.domain.replace('.', '-')}-${idx}`,
@@ -897,10 +916,58 @@ export function generateClientSideJobs(profile: CandidateProfile, filters?: any)
       ],
       postedDate: `${(idx % 4) + 1} day${idx % 4 === 0 ? '' : 's'} ago`,
       applicantCompetition: idx < 5 ? 'Low' : 'Moderate',
-      applyUrl: `https://${c.domain}`,
+      applyUrl: careerUrl,
       source: `${c.name} Remote Careers`
     };
   });
+}
+
+/**
+ * Universal helper that returns the most direct job posting / careers URL for any JobOpening
+ */
+export function getJobPostingUrl(job: { company: string; title: string; applyUrl?: string; companyDomain?: string }): string {
+  if (job.applyUrl && job.applyUrl.startsWith('http')) {
+    // If it's a root domain like https://cisco.com, improve it to /careers
+    try {
+      const url = new URL(job.applyUrl);
+      if (url.pathname === '/' || url.pathname === '') {
+        const domain = url.hostname.replace(/^www\./, '').toLowerCase();
+        if (domain === 'canonical.com') return 'https://canonical.com/careers';
+        if (domain === 'redhat.com') return 'https://www.redhat.com/en/jobs';
+        if (domain === 'gitlab.com') return 'https://about.gitlab.com/jobs/';
+        if (domain === 'automattic.com') return 'https://automattic.com/work-with-us/';
+        if (domain === 'zapier.com') return 'https://zapier.com/jobs';
+        if (domain === 'invisionapp.com') return 'https://www.invisionapp.com/company/careers';
+        if (domain === 'buffer.com') return 'https://buffer.com/journey';
+        if (domain === '37signals.com') return 'https://37signals.com/jobs';
+        if (domain === 'cisco.com') return 'https://jobs.cisco.com/';
+        if (domain === 'squarespace.com') return 'https://www.squarespace.com/about/careers';
+        if (domain === 'unchealthcare.org') return 'https://jobs.unchealthcare.org/';
+        if (domain === 'sas.com') return 'https://www.sas.com/en_us/careers.html';
+        if (domain === 'elastic.co') return 'https://www.elastic.co/about/careers/';
+        if (domain === 'take2games.com') return 'https://www.take2games.com/careers/';
+        if (domain === 'duckduckgo.com') return 'https://duckduckgo.com/hiring';
+        if (domain === 'helpscout.com') return 'https://www.helpscout.com/careers/';
+        if (domain === 'chewy.com') return 'https://careers.chewy.com/';
+        if (domain === 'metlife.com') return 'https://jobs.metlife.com/';
+        if (domain === 'epicgames.com') return 'https://www.epicgames.com/site/en-US/careers';
+        if (domain === 'akamai.com') return 'https://www.akamai.com/careers';
+        if (domain === 'redventures.com') return 'https://www.redventures.com/careers';
+        if (domain === 'rackspace.com') return 'https://jobs.rackspace.com/';
+        if (domain === 'ncsu.edu') return 'https://jobs.ncsu.edu/';
+        if (domain === 'dukehealth.org') return 'https://careers.dukehealth.org/';
+        return `${job.applyUrl.replace(/\/$/, '')}/careers`;
+      }
+    } catch {
+      // url parsing fallback
+    }
+    return job.applyUrl;
+  }
+  if (job.companyDomain) {
+    const domain = job.companyDomain.toLowerCase().replace(/^www\./, '');
+    return `https://${domain}/careers`;
+  }
+  return `https://www.google.com/search?q=${encodeURIComponent(`${job.company} ${job.title} careers job posting`)}`;
 }
 
 /**

@@ -13,9 +13,11 @@ import {
   AlertCircle,
   FileDown,
   Loader2,
-  FileCheck2
+  FileCheck2,
+  ExternalLink
 } from 'lucide-react';
 import { exportCoverLetterPdf, exportCoverLetterDocx, cleanCandidateName } from '../utils/documentExporter';
+import { getJobPostingUrl } from '../utils/clientResumeParser';
 
 interface CoverLetterModalProps {
   isOpen: boolean;
@@ -134,9 +136,20 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
                 Cover Letter for {job.company}
               </h2>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-              Position: <strong className="text-slate-800 dark:text-slate-200">{job.title}</strong> · Tailored from resume insights
-            </p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <span>Position: <strong className="text-slate-800 dark:text-slate-200">{job.title}</strong></span>
+              <span>·</span>
+              <a
+                href={getJobPostingUrl(job)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline"
+                title="Open original job posting in a new tab"
+              >
+                <span>Job Posting</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">

@@ -16,8 +16,10 @@ import {
   Loader2,
   FileCheck2,
   Eye,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ExternalLink
 } from 'lucide-react';
+import { getJobPostingUrl } from '../utils/clientResumeParser';
 import {
   exportTailoredResumePdf,
   exportTailoredResumeDocx,
@@ -163,9 +165,22 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                 Tailored Resume for {job.title}
               </h2>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-              Target Company: <strong className="text-slate-800 dark:text-slate-200">{job.company}</strong> · {job.workArrangement}
-            </p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <span>Target Company: <strong className="text-slate-800 dark:text-slate-200">{job.company}</strong></span>
+              <span>·</span>
+              <span>{job.workArrangement}</span>
+              <span>·</span>
+              <a
+                href={getJobPostingUrl(job)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline"
+                title="Open original job posting in a new tab"
+              >
+                <span>Job Posting</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">

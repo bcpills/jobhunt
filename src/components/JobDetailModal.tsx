@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { JobOpening, CandidateProfile } from '../types';
 import { SalaryBenchmarkChart } from './SalaryBenchmarkChart';
+import { getJobPostingUrl } from '../utils/clientResumeParser';
 import {
   X,
   ExternalLink,
@@ -72,6 +73,19 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 <Building2 className="w-3 h-3" />
                 <span>Research Company</span>
               </button>
+
+              {/* Direct link to original job posting */}
+              <a
+                href={getJobPostingUrl(job)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 bg-indigo-50/90 dark:bg-indigo-950/70 border border-indigo-200/90 dark:border-indigo-800 px-2 py-0.5 rounded transition-colors"
+                title="Open official job posting in a new tab"
+              >
+                <ExternalLink className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                <span>Job Posting</span>
+              </a>
+
               <span className="text-slate-300 dark:text-slate-700">·</span>
               <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800">
                 {job.matchScore}% Match ({job.matchTier})
@@ -120,6 +134,18 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Direct Link to Job Posting */}
+            <a
+              href={getJobPostingUrl(job)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-xs"
+              title="Open official job posting on company site in a new tab"
+            >
+              <span>Job Posting</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+
             {onToggleApply && (
               <button
                 onClick={() => onToggleApply(job)}
@@ -185,10 +211,22 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             <>
               {/* PRIMARY VIEW: Job Description & Qualifications First */}
               <div>
-                <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                  <span>Job Description & Overview</span>
-                </h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>Job Description & Overview</span>
+                  </h3>
+                  <a
+                    href={getJobPostingUrl(job)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline"
+                    title="Open original job posting in a new tab"
+                  >
+                    <span>Original Posting</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
                 <div className="bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4">
                   <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
                     {job.description}
@@ -342,13 +380,14 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             </button>
 
             <a
-              href={job.applyUrl || `https://www.google.com/search?q=${encodeURIComponent(`${job.company} ${job.title} remote careers`)}`}
+              href={getJobPostingUrl(job)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors px-2 py-2"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-white bg-indigo-50/90 dark:bg-indigo-950/70 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/90 dark:border-indigo-800 px-3 py-2 rounded-xl transition-colors min-h-[40px]"
+              title="Open official job posting in a new tab"
             >
-              <span>Search Careers</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Open Job Posting</span>
             </a>
           </div>
 
