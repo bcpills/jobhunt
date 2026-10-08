@@ -10,7 +10,12 @@ import {
   convertInchesToTwip
 } from 'docx';
 import { TailoredResume, CoverLetter, JobOpening, CandidateProfile, ResumeStyleId } from '../types';
-import { extractWorkExperienceAndEducationFromText } from './clientResumeParser';
+import {
+  extractWorkExperienceAndEducationFromText,
+  cleanCandidateName as parseCleanCandidateName,
+  isInvalidCandidateName,
+  extractCandidateNameFromText
+} from './clientResumeParser';
 
 export interface ResumeExportOptions {
   tailoredResume: TailoredResume;
@@ -44,29 +49,10 @@ function cleanBulletText(text: string): string {
 
 /**
  * Cleans candidate name by removing artifacts like "IT Resume", "Resume", ".pdf", etc.
+ * Falls back to extracting directly from resume text when name is missing or N/A.
  */
-export function cleanCandidateName(raw: string): string {
-  if (!raw) return 'Joseph Thomas';
-  let cleaned = raw
-    .replace(/^#*\s*/, '')
-    .replace(/\.[^/.]+$/, '') // remove file extension
-    .replace(/[-_]/g, ' ')
-    .replace(/\b(IT\s+Support\s+)?(IT\s+)?(Desktop\s+Support\s+)?(Technical\s+)?(Resume|CV|Curriculum\s+Vitae|Profile|Document|Cover\s+Letter)\b/gi, '')
-    .replace(/\b(Resume|CV)\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  cleaned = cleaned.replace(/[-_–—|•]+$/, '').replace(/^[-_–—|•]+/, '').trim();
-  if (
-    cleaned.length < 2 ||
-    cleaned.toLowerCase() === 'candidate' ||
-    cleaned.toLowerCase() === 'candidate name' ||
-    cleaned.toLowerCase().includes('technical specialist') ||
-    cleaned.toLowerCase() === 'resume' ||
-    cleaned.toLowerCase() === 'it'
-  ) {
-    return 'Joseph Thomas';
-  }
-  return cleaned;
+export function cleanCandidateName(raw?: string, resumeText?: string, fileName?: string): string {
+  return parseCleanCandidateName(raw, resumeText, fileName);
 }
 
 /**
@@ -1174,7 +1160,7 @@ export async function exportCoverLetterPdf(options: CoverLetterExportOptions): P
   const contentWidth = pageWidth - margin * 2;
   let y = margin;
 
-  const candidateName = cleanCandidateName(profile?.name || 'Joseph Thomas');
+  const candidateName = cleanCandidateName(profile?.name, profile?.extractedResumeText);
   const contactLine = extractContactLine(profile, profile?.extractedResumeText);
   const dateStr = new Date().toLocaleDateString('en-US', {
     month: 'long',
@@ -1223,7 +1209,11 @@ export async function exportCoverLetterPdf(options: CoverLetterExportOptions): P
   y += 8;
 
   // Cover Letter Body Paragraphs
-  const fullText = (editedText || coverLetter.fullText || '').trim();
+  let fullText = (editedText || coverLetter.fullText || '').trim();
+  // Sanitize any N/A placeholder in signoff or text
+  fullText = fullText
+    .replace(/(?:Sincerely|Warm regards|Best regards|Regards|Cheers)[,\s]+N\/A\b/gi, `Sincerely,\n${candidateName}`)
+    .replace(/\bN\/A\b/g, candidateName);
   const rawParagraphs = fullText.split('\n\n').filter((p) => p.trim().length > 0);
 
   doc.setFont('helvetica', 'normal');
@@ -1271,7 +1261,7 @@ export async function exportCoverLetterPdf(options: CoverLetterExportOptions): P
  */
 export async function exportCoverLetterDocx(options: CoverLetterExportOptions): Promise<void> {
   const { coverLetter, job, profile, editedText } = options;
-  const candidateName = cleanCandidateName(profile?.name || 'Joseph Thomas');
+  const candidateName = cleanCandidateName(profile?.name, profile?.extractedResumeText);
   const contactLine = extractContactLine(profile, profile?.extractedResumeText);
   const dateStr = new Date().toLocaleDateString('en-US', {
     month: 'long',
@@ -1279,7 +1269,11 @@ export async function exportCoverLetterDocx(options: CoverLetterExportOptions): 
     year: 'numeric',
   });
 
-  const fullText = (editedText || coverLetter.fullText || '').trim();
+  let fullText = (editedText || coverLetter.fullText || '').trim();
+  // Sanitize any N/A placeholder in signoff or text
+  fullText = fullText
+    .replace(/(?:Sincerely|Warm regards|Best regards|Regards|Cheers)[,\s]+N\/A\b/gi, `Sincerely,\n${candidateName}`)
+    .replace(/\bN\/A\b/g, candidateName);
   const rawParagraphs = fullText.split('\n\n').filter((p) => p.trim().length > 0);
 
   const children: Paragraph[] = [

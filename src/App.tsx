@@ -251,6 +251,7 @@ export default function App() {
 
       const effectiveState = state || extractedProfile.userState || 'NC';
       extractedProfile.userState = effectiveState;
+      extractedProfile.name = cleanCandidateName(extractedProfile.name, text);
       if (salary?.min) extractedProfile.targetSalaryMin = salary.min;
       if (salary?.max) extractedProfile.targetSalaryMax = salary.max;
 
@@ -302,6 +303,7 @@ export default function App() {
 
       const effectiveState = state || extractedProfile.userState || 'NC';
       extractedProfile.userState = effectiveState;
+      extractedProfile.name = cleanCandidateName(extractedProfile.name, clientText, fileName);
       if (salary?.min) extractedProfile.targetSalaryMin = salary.min;
       if (salary?.max) extractedProfile.targetSalaryMax = salary.max;
 
@@ -404,7 +406,7 @@ export default function App() {
   // 5. Generate Cover Letter Action
   const handleGenerateCoverLetter = async (
     job: JobOpening,
-    customPreferences?: { tone?: string; customParagraph?: string }
+    customPreferences?: { tone?: string; length?: string; customNotes?: string; customParagraph?: string }
   ) => {
     if (!profile) return;
     setSelectedJob(job);
@@ -414,9 +416,15 @@ export default function App() {
       const letter = await generateCoverLetter({
         candidateProfile: profile,
         job,
+        originalResumeText: rawResumeText || profile.extractedResumeText,
         tone: customPreferences?.tone,
         customParagraph: customPreferences?.customParagraph,
         companyResearch: companyResearchData,
+        preferences: {
+          tone: customPreferences?.tone,
+          length: customPreferences?.length,
+          customNotes: customPreferences?.customNotes,
+        },
       });
       setCoverLetter(letter);
       showToast(`Cover letter crafted for ${job.company}!`);

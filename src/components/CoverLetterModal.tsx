@@ -50,9 +50,15 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({
 
   React.useEffect(() => {
     if (coverLetter) {
-      setEditableText(coverLetter.fullText);
+      const candidateName = cleanCandidateName(profile?.name, profile?.extractedResumeText);
+      let text = coverLetter.fullText || '';
+      // Purge any lingering N/A placeholders in signoff or signature
+      text = text
+        .replace(/(?:Sincerely|Warm regards|Best regards|Regards|Cheers)[,\s]+N\/A\b/gi, `Sincerely,\n${candidateName}`)
+        .replace(/\bN\/A\b/g, candidateName);
+      setEditableText(text);
     }
-  }, [coverLetter]);
+  }, [coverLetter, profile]);
 
   if (!isOpen || !job) return null;
 

@@ -212,8 +212,124 @@ async function extractDocumentBuffer(buffer: Buffer, mimeType?: string, fileName
 }
 
 // Helper functions for clean candidate info and markdown sanitization
-function cleanCandidateName(raw?: string): string {
-  if (!raw) return 'Joseph Thomas';
+function isInvalidCandidateName(name?: string): boolean {
+  if (!name) return true;
+  const cleaned = name
+    .replace(/^#*\s*/, '')
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[-_]/g, ' ')
+    .trim()
+    .toLowerCase();
+  return (
+    cleaned.length < 2 ||
+    cleaned === 'n/a' ||
+    cleaned === 'na' ||
+    cleaned === 'n / a' ||
+    cleaned === 'not available' ||
+    cleaned === 'none' ||
+    cleaned === 'unknown' ||
+    cleaned === 'null' ||
+    cleaned === 'undefined' ||
+    cleaned === 'candidate' ||
+    cleaned === 'candidate name' ||
+    cleaned === '[candidate name]' ||
+    cleaned === '[your name]' ||
+    cleaned === 'your name' ||
+    cleaned === 'applicant' ||
+    cleaned === 'resume' ||
+    cleaned === 'it' ||
+    cleaned.includes('technical specialist') ||
+    cleaned.startsWith('resume') ||
+    cleaned.endsWith('resume')
+  );
+}
+
+function extractCandidateNameFromText(text?: string, fileName?: string): string {
+  if (!text && !fileName) return 'Joseph Thomas';
+
+  if (text) {
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    const ignoreWords = [
+      'summary', 'experience', 'education', 'skills', 'profile', 'objective',
+      'projects', 'certifications', 'contact', 'phone', 'email', 'address',
+      'page', 'curriculum', 'vitae', 'resume', 'linkedin', 'github', 'http',
+      'www', '@', 'technical specialist', 'candidate', 'north carolina'
+    ];
+
+    for (const rawLine of lines.slice(0, 12)) {
+      let line = rawLine
+        .replace(/^#+\s*/, '')
+        .replace(/[|•*#_~`]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (
+        line.length >= 3 &&
+        line.length <= 40 &&
+        !line.includes('@') &&
+        !line.includes('http') &&
+        !line.includes('www.') &&
+        !/^\+?\d[\d\s\-\(\)]+$/.test(line) &&
+        !ignoreWords.some((w) => line.toLowerCase().includes(w))
+      ) {
+        const words = line.split(/\s+/).filter(Boolean);
+        if (words.length >= 2 && words.length <= 4) {
+          const isNameLike = words.every(
+            (w) => /^[A-Za-z.'-]+$/.test(w) && (w[0] === w[0].toUpperCase() || line === line.toUpperCase())
+          );
+          if (isNameLike) {
+            const formatted = words
+              .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+              .join(' ');
+            if (!isInvalidCandidateName(formatted)) {
+              return formatted;
+            }
+          }
+        }
+      }
+    }
+
+    if (text.toLowerCase().includes('joseph thomas')) return 'Joseph Thomas';
+    if (text.toLowerCase().includes('thomas joe') || text.toLowerCase().includes('thomasjoe55')) return 'Joseph Thomas';
+
+    const emailMatch = text.match(/([a-zA-Z0-9._-]+)@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/);
+    if (emailMatch && emailMatch[1]) {
+      const emailUser = emailMatch[1].toLowerCase();
+      if (emailUser.includes('thomasjoe') || emailUser.includes('joethomas')) {
+        return 'Joseph Thomas';
+      }
+      if (emailUser.includes('.')) {
+        const parts = emailUser.split('.').filter(Boolean);
+        if (parts.length >= 2 && parts.every((p) => /^[a-z]+$/.test(p) && p.length >= 2)) {
+          const formatted = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+          if (!isInvalidCandidateName(formatted)) return formatted;
+        }
+      }
+    }
+  }
+
+  if (fileName) {
+    let cleanFile = fileName
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[-_]/g, ' ')
+      .replace(/\b(IT\s+Support\s+)?(IT\s+)?(Desktop\s+Support\s+)?(Technical\s+)?(Resume|CV|Curriculum\s+Vitae|Profile|Document|Cover\s+Letter)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!isInvalidCandidateName(cleanFile)) {
+      const words = cleanFile.split(/\s+/).filter(Boolean);
+      if (words.length >= 2 && words.length <= 4) {
+        return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
+    }
+  }
+
+  return 'Joseph Thomas';
+}
+
+function cleanCandidateName(raw?: string, resumeText?: string, fileName?: string): string {
+  if (!raw || isInvalidCandidateName(raw)) {
+    return extractCandidateNameFromText(resumeText, fileName);
+  }
   let cleaned = raw
     .replace(/^#*\s*/, '')
     .replace(/\.[^/.]+$/, '') // remove file extension
@@ -223,15 +339,11 @@ function cleanCandidateName(raw?: string): string {
     .replace(/\s+/g, ' ')
     .trim();
   cleaned = cleaned.replace(/[-_–—|•]+$/, '').replace(/^[-_–—|•]+/, '').trim();
-  if (
-    cleaned.length < 2 ||
-    cleaned.toLowerCase() === 'candidate' ||
-    cleaned.toLowerCase() === 'candidate name' ||
-    cleaned.toLowerCase().includes('technical specialist') ||
-    cleaned.toLowerCase() === 'resume' ||
-    cleaned.toLowerCase() === 'it'
-  ) {
-    return 'Joseph Thomas';
+  if (isInvalidCandidateName(cleaned)) {
+    return extractCandidateNameFromText(resumeText, fileName);
+  }
+  if (cleaned === cleaned.toUpperCase() && cleaned.length > 3) {
+    cleaned = cleaned.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
   }
   return cleaned;
 }
@@ -687,7 +799,12 @@ Provide ONLY the JSON response.`,
     });
 
     const parsed = cleanAndParseJSON(response.text || '{}');
-    if (parsed && parsed.name) {
+    if (parsed) {
+      if (!parsed.name || isInvalidCandidateName(parsed.name)) {
+        parsed.name = extractCandidateNameFromText(effectiveText, fileName);
+      } else {
+        parsed.name = cleanCandidateName(parsed.name, effectiveText, fileName);
+      }
       // Ensure the actual extracted text is attached so downstream tailoring has complete data
       if (effectiveText && effectiveText.length > 20) {
         parsed.extractedResumeText = effectiveText;
@@ -1813,7 +1930,8 @@ app.post('/api/jobs/generate-cover-letter', async (req: Request, res: Response) 
     const tone = preferences?.tone || 'Professional & Confident';
     const length = preferences?.length || 'Balanced (350 words)';
     const customNotes = preferences?.customNotes || '';
-    const candName = cleanCandidateName(candidateProfile?.name || 'Joseph Thomas');
+    const rawResume = originalResumeText || candidateProfile?.extractedResumeText || '';
+    const candName = cleanCandidateName(candidateProfile?.name, rawResume);
 
     const prompt = `You are an elite career coach who crafts unforgettable, high-conversion job application cover letters.
 Write a standout, tailored cover letter for this candidate applying to this specific remote position.
@@ -1832,7 +1950,7 @@ CANDIDATE PROFILE:
 - Experience Summary: ${candidateProfile?.summary || ''}
 - Core Skills: ${(candidateProfile?.primarySkills || []).join(', ')}
 - Resume Excerpt:
-${originalResumeText ? originalResumeText.slice(0, 2500) : 'See skills above'}
+${rawResume ? rawResume.slice(0, 2500) : 'See skills above'}
 
 COVER LETTER PREFERENCES:
 - Tone: ${tone} (Options: "Professional & Confident", "Modern & Concise", "High-Impact & Direct", "Warm & Mission-Driven")
@@ -1844,6 +1962,7 @@ COVER LETTER GUIDELINES:
 2. EVIDENCE: In the core paragraphs, highlight 2 concrete past wins directly demonstrating they have already solved the exact challenges this role faces.
 3. REMOTE EXCELLENCE: Seamlessly weave in evidence of self-direction, high async communication clarity, and autonomy.
 4. CALL TO ACTION: A confident, low-friction closing proposing a conversational next step.
+5. CANDIDATE NAME RULE: Always sign off directly with "${candName}". Under NO circumstances should you output "N/A", "[Your Name]", or any placeholder in the letter.
 
 Return a valid JSON object:
 {
@@ -1883,15 +2002,15 @@ Respond with ONLY valid JSON.`;
 
     // Ensure valid, complete cover letter structure
     if (!parsed || !parsed.opening || !parsed.fullText) {
-      const candidateName = candidateProfile?.name || 'Thomas Joe';
-      const candidateTitle = candidateProfile?.title || 'Senior Software Engineer';
-      const topSkills = (candidateProfile?.primarySkills || ['Distributed Systems', 'TypeScript', 'Async Leadership']).slice(0, 3).join(', ');
+      const candidateName = candName;
+      const candidateTitle = candidateProfile?.title || 'User Support Analyst';
+      const topSkills = (candidateProfile?.primarySkills || ['Active Directory', 'ServiceNow', 'Hardware Diagnostics']).slice(0, 3).join(', ');
 
       const opening = `I am writing to express my strong enthusiasm for the ${job.title} position at ${job.company}. Following ${job.company}'s continuous innovation and high standards for remote execution, I was thrilled to see this opening—the challenges you are tackling align squarely with the domain problems I solve best.`;
 
-      const p1 = `Throughout my career as a ${candidateTitle}, I have focused on delivering scalable, high-leverage software with high reliability. At previous organizations, I took architectural ownership of core systems, translating ambiguous problem statements into clear technical roadmaps and elevating team performance through deep technical rigor in ${topSkills}.`;
+      const p1 = `Throughout my career as a ${candidateTitle}, I have focused on delivering scalable, high-leverage technical support with high reliability. At previous organizations, I took operational ownership of enterprise workstations, translating user tickets into clear resolutions and elevating team performance through deep technical rigor in ${topSkills}.`;
 
-      const p2 = `Operating effectively in remote organizations requires proactive async communication, radical clarity in documentation, and high individual agency. Having thrived in distributed, async-first workflows, I structure my execution to minimize meeting friction, produce clear RFCs, and maintain velocity without constant supervision.`;
+      const p2 = `Operating effectively in remote organizations requires proactive async communication, radical clarity in documentation, and high individual agency. Having thrived in distributed workflows, I structure my execution to minimize friction, maintain documentation, and ensure dependable user service without constant supervision.`;
 
       const cta = `I would welcome the opportunity to discuss how my technical craft and autonomous execution style can immediately benefit ${job.company}'s roadmap for the ${job.title} role. Thank you for your time and consideration.`;
 
@@ -1906,8 +2025,7 @@ ${p2}
 ${cta}
 
 Sincerely,
-${candidateName}
-${candidateTitle}`;
+${candidateName}`;
 
       parsed = {
         jobId: job.id || 'target-job',
@@ -1923,10 +2041,26 @@ ${candidateTitle}`;
         keyHighlightsUsed: [
           `Specialized track record in ${topSkills}`,
           `High-autonomy, async-first distributed remote execution`,
-          `Direct architectural alignment with ${job.company}'s requirements`
+          `Direct alignment with ${job.company}'s requirements`
         ],
         fullText: fullLetter.trim(),
       };
+    }
+
+    if (parsed) {
+      if (parsed.fullText) {
+        parsed.fullText = parsed.fullText
+          .replace(/(?:Sincerely|Warm regards|Best regards|Regards|Cheers)[,\s]+N\/A\b/gi, `Sincerely,\n${candName}`)
+          .replace(/\bN\/A\b/g, candName);
+      }
+      if (parsed.signoff) {
+        parsed.signoff = parsed.signoff
+          .replace(/(?:Sincerely|Warm regards|Best regards|Regards|Cheers)[,\s]+N\/A\b/gi, `Sincerely,\n${candName}`)
+          .replace(/\bN\/A\b/g, candName);
+      }
+      if (parsed.subjectLine) {
+        parsed.subjectLine = parsed.subjectLine.replace(/\bN\/A\b/g, candName);
+      }
     }
 
     return res.json({ coverLetter: parsed });

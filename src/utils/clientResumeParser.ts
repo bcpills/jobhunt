@@ -23,10 +23,137 @@ export const US_STATE_NAMES: Record<string, string> = {
 };
 
 /**
- * Cleans candidate name by removing artifacts like "IT Resume", "Resume", ".pdf", etc.
+ * Checks if a candidate name string is invalid, generic, or an N/A placeholder
  */
-export function cleanCandidateName(raw?: string): string {
-  if (!raw) return 'Joseph Thomas';
+export function isInvalidCandidateName(name?: string): boolean {
+  if (!name) return true;
+  const cleaned = name
+    .replace(/^#*\s*/, '')
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[-_]/g, ' ')
+    .trim()
+    .toLowerCase();
+  return (
+    cleaned.length < 2 ||
+    cleaned === 'n/a' ||
+    cleaned === 'na' ||
+    cleaned === 'n / a' ||
+    cleaned === 'not available' ||
+    cleaned === 'none' ||
+    cleaned === 'unknown' ||
+    cleaned === 'null' ||
+    cleaned === 'undefined' ||
+    cleaned === 'candidate' ||
+    cleaned === 'candidate name' ||
+    cleaned === '[candidate name]' ||
+    cleaned === '[your name]' ||
+    cleaned === 'your name' ||
+    cleaned === 'applicant' ||
+    cleaned === 'resume' ||
+    cleaned === 'it' ||
+    cleaned.includes('technical specialist') ||
+    cleaned.startsWith('resume') ||
+    cleaned.endsWith('resume')
+  );
+}
+
+/**
+ * Intelligently extracts the candidate's real name from resume text, contact lines, or filename
+ */
+export function extractCandidateNameFromText(text?: string, fileName?: string): string {
+  if (!text && !fileName) return 'Joseph Thomas';
+
+  // 1. Scan the first 12 non-empty lines of resume text
+  if (text) {
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    const ignoreWords = [
+      'summary', 'experience', 'education', 'skills', 'profile', 'objective',
+      'projects', 'certifications', 'contact', 'phone', 'email', 'address',
+      'page', 'curriculum', 'vitae', 'resume', 'linkedin', 'github', 'http',
+      'www', '@', 'technical specialist', 'candidate', 'north carolina'
+    ];
+
+    for (const rawLine of lines.slice(0, 12)) {
+      // Clean symbols and markdown markers
+      let line = rawLine
+        .replace(/^#+\s*/, '')
+        .replace(/[|•*#_~`]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (
+        line.length >= 3 &&
+        line.length <= 40 &&
+        !line.includes('@') &&
+        !line.includes('http') &&
+        !line.includes('www.') &&
+        !/^\+?\d[\d\s\-\(\)]+$/.test(line) &&
+        !ignoreWords.some((w) => line.toLowerCase().includes(w))
+      ) {
+        const words = line.split(/\s+/).filter(Boolean);
+        if (words.length >= 2 && words.length <= 4) {
+          const isNameLike = words.every(
+            (w) => /^[A-Za-z.'-]+$/.test(w) && (w[0] === w[0].toUpperCase() || line === line.toUpperCase())
+          );
+          if (isNameLike) {
+            const formatted = words
+              .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+              .join(' ');
+            if (!isInvalidCandidateName(formatted)) {
+              return formatted;
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Check for known names or user email signatures
+    if (text.toLowerCase().includes('joseph thomas')) return 'Joseph Thomas';
+    if (text.toLowerCase().includes('thomas joe') || text.toLowerCase().includes('thomasjoe55')) return 'Joseph Thomas';
+
+    // 3. Check for email address matching person's name
+    const emailMatch = text.match(/([a-zA-Z0-9._-]+)@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/);
+    if (emailMatch && emailMatch[1]) {
+      const emailUser = emailMatch[1].toLowerCase();
+      if (emailUser.includes('thomasjoe') || emailUser.includes('joethomas')) {
+        return 'Joseph Thomas';
+      }
+      if (emailUser.includes('.')) {
+        const parts = emailUser.split('.').filter(Boolean);
+        if (parts.length >= 2 && parts.every((p) => /^[a-z]+$/.test(p) && p.length >= 2)) {
+          const formatted = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+          if (!isInvalidCandidateName(formatted)) return formatted;
+        }
+      }
+    }
+  }
+
+  // 4. Check fileName if provided
+  if (fileName) {
+    let cleanFile = fileName
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[-_]/g, ' ')
+      .replace(/\b(IT\s+Support\s+)?(IT\s+)?(Desktop\s+Support\s+)?(Technical\s+)?(Resume|CV|Curriculum\s+Vitae|Profile|Document|Cover\s+Letter)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!isInvalidCandidateName(cleanFile)) {
+      const words = cleanFile.split(/\s+/).filter(Boolean);
+      if (words.length >= 2 && words.length <= 4) {
+        return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
+    }
+  }
+
+  return 'Joseph Thomas';
+}
+
+/**
+ * Cleans candidate name and falls back to extracting directly from resume text instead of returning N/A
+ */
+export function cleanCandidateName(raw?: string, resumeText?: string, fileName?: string): string {
+  if (!raw || isInvalidCandidateName(raw)) {
+    return extractCandidateNameFromText(resumeText, fileName);
+  }
   let cleaned = raw
     .replace(/^#*\s*/, '')
     .replace(/\.[^/.]+$/, '') // remove file extension
@@ -36,15 +163,12 @@ export function cleanCandidateName(raw?: string): string {
     .replace(/\s+/g, ' ')
     .trim();
   cleaned = cleaned.replace(/[-_–—|•]+$/, '').replace(/^[-_–—|•]+/, '').trim();
-  if (
-    cleaned.length < 2 ||
-    cleaned.toLowerCase() === 'candidate' ||
-    cleaned.toLowerCase() === 'candidate name' ||
-    cleaned.toLowerCase().includes('technical specialist') ||
-    cleaned.toLowerCase() === 'resume' ||
-    cleaned.toLowerCase() === 'it'
-  ) {
-    return 'Joseph Thomas';
+  if (isInvalidCandidateName(cleaned)) {
+    return extractCandidateNameFromText(resumeText, fileName);
+  }
+  // Title case if uppercase
+  if (cleaned === cleaned.toUpperCase() && cleaned.length > 3) {
+    cleaned = cleaned.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
   }
   return cleaned;
 }
@@ -923,51 +1047,120 @@ export function generateClientSideJobs(profile: CandidateProfile, filters?: any)
 }
 
 /**
- * Universal helper that returns the most direct job posting / careers URL for any JobOpening
+ * Universal helper that returns the most direct, actual job posting URL or targeted search for any JobOpening
  */
 export function getJobPostingUrl(job: { company: string; title: string; applyUrl?: string; companyDomain?: string }): string {
+  const company = (job.company || '').trim();
+  const title = (job.title || '').trim();
+  const domain = (job.companyDomain || '').toLowerCase().replace(/^www\./, '');
+
   if (job.applyUrl && job.applyUrl.startsWith('http')) {
-    // If it's a root domain like https://cisco.com, improve it to /careers
     try {
       const url = new URL(job.applyUrl);
-      if (url.pathname === '/' || url.pathname === '') {
-        const domain = url.hostname.replace(/^www\./, '').toLowerCase();
-        if (domain === 'canonical.com') return 'https://canonical.com/careers';
-        if (domain === 'redhat.com') return 'https://www.redhat.com/en/jobs';
-        if (domain === 'gitlab.com') return 'https://about.gitlab.com/jobs/';
-        if (domain === 'automattic.com') return 'https://automattic.com/work-with-us/';
-        if (domain === 'zapier.com') return 'https://zapier.com/jobs';
-        if (domain === 'invisionapp.com') return 'https://www.invisionapp.com/company/careers';
-        if (domain === 'buffer.com') return 'https://buffer.com/journey';
-        if (domain === '37signals.com') return 'https://37signals.com/jobs';
-        if (domain === 'cisco.com') return 'https://jobs.cisco.com/';
-        if (domain === 'squarespace.com') return 'https://www.squarespace.com/about/careers';
-        if (domain === 'unchealthcare.org') return 'https://jobs.unchealthcare.org/';
-        if (domain === 'sas.com') return 'https://www.sas.com/en_us/careers.html';
-        if (domain === 'elastic.co') return 'https://www.elastic.co/about/careers/';
-        if (domain === 'take2games.com') return 'https://www.take2games.com/careers/';
-        if (domain === 'duckduckgo.com') return 'https://duckduckgo.com/hiring';
-        if (domain === 'helpscout.com') return 'https://www.helpscout.com/careers/';
-        if (domain === 'chewy.com') return 'https://careers.chewy.com/';
-        if (domain === 'metlife.com') return 'https://jobs.metlife.com/';
-        if (domain === 'epicgames.com') return 'https://www.epicgames.com/site/en-US/careers';
-        if (domain === 'akamai.com') return 'https://www.akamai.com/careers';
-        if (domain === 'redventures.com') return 'https://www.redventures.com/careers';
-        if (domain === 'rackspace.com') return 'https://jobs.rackspace.com/';
-        if (domain === 'ncsu.edu') return 'https://jobs.ncsu.edu/';
-        if (domain === 'dukehealth.org') return 'https://careers.dukehealth.org/';
-        return `${job.applyUrl.replace(/\/$/, '')}/careers`;
+      const host = url.hostname.replace(/^www\./, '').toLowerCase();
+      const path = url.pathname.replace(/\/+$/, '').toLowerCase();
+
+      // If it already contains search params, specific job id, or ATS deep path, return it directly
+      if (
+        url.search.length > 2 ||
+        url.hash.length > 2 ||
+        path.includes('/job/') ||
+        path.includes('/jobs/') ||
+        path.includes('/search') ||
+        path.includes('/postings/') ||
+        path.includes('greenhouse.io') ||
+        path.includes('lever.co') ||
+        path.includes('myworkdayjobs.com') ||
+        path.includes('icims.com') ||
+        path.includes('smartrecruiters.com') ||
+        path.includes('ashbyhq.com')
+      ) {
+        return job.applyUrl;
+      }
+
+      // If it's a known company career portal, navigate directly to filtered search for this exact role
+      if (host === 'canonical.com') {
+        return `https://canonical.com/careers/all?filter=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'redhat.com' || host === 'careers.redhat.com') {
+        return `https://careers.redhat.com/search-jobs/${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'cisco.com' || host === 'jobs.cisco.com') {
+        return `https://jobs.cisco.com/jobs/SearchJobs/${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'chewy.com' || host === 'careers.chewy.com') {
+        return `https://careers.chewy.com/us/en/search-results?keywords=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'metlife.com' || host === 'jobs.metlife.com') {
+        return `https://jobs.metlife.com/search/?q=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'epicgames.com') {
+        return `https://www.epicgames.com/site/en-US/careers/jobs?keyword=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'elastic.co') {
+        return `https://www.elastic.co/about/careers/search?q=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'gitlab.com' || host === 'about.gitlab.com') {
+        return `https://about.gitlab.com/jobs/all-jobs/?search=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'ncsu.edu' || host === 'jobs.ncsu.edu') {
+        return `https://jobs.ncsu.edu/postings/search?query=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'dukehealth.org' || host === 'careers.dukehealth.org') {
+        return `https://careers.dukehealth.org/search/?q=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'unchealthcare.org' || host === 'jobs.unchealthcare.org') {
+        return `https://jobs.unchealthcare.org/search/jobs?q=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'sas.com') {
+        return `https://careers-sas.icims.com/jobs/search?ss=1&searchKeyword=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'rackspace.com' || host === 'jobs.rackspace.com') {
+        return `https://jobs.rackspace.com/search/?q=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'akamai.com') {
+        return `https://akamai.wd1.myworkdayjobs.com/Careers?q=${encodeURIComponent(title || 'Support')}`;
+      }
+      if (host === 'redventures.com' || host === 'careers.redventures.com') {
+        return `https://careers.redventures.com/search?query=${encodeURIComponent(title || 'Support')}`;
+      }
+
+      // If it's a generic root /careers or /jobs without direct search capabilities,
+      // fallback to Google for Jobs query for the exact posting at that company!
+      if (
+        path === '' ||
+        path === '/' ||
+        path === '/careers' ||
+        path === '/jobs' ||
+        path === '/en/jobs' ||
+        path === '/about/careers' ||
+        path === '/work-with-us' ||
+        path === '/hiring' ||
+        path === '/journey'
+      ) {
+        return `https://www.google.com/search?q=${encodeURIComponent(`"${company}" "${title}" remote job apply`)}&ibp=htl;jobs`;
       }
     } catch {
       // url parsing fallback
     }
     return job.applyUrl;
   }
-  if (job.companyDomain) {
-    const domain = job.companyDomain.toLowerCase().replace(/^www\./, '');
-    return `https://${domain}/careers`;
+
+  // 2. Company domain check
+  if (domain) {
+    if (domain === 'canonical.com') return `https://canonical.com/careers/all?filter=${encodeURIComponent(title || 'Support')}`;
+    if (domain === 'redhat.com') return `https://careers.redhat.com/search-jobs/${encodeURIComponent(title || 'Support')}`;
+    if (domain === 'cisco.com') return `https://jobs.cisco.com/jobs/SearchJobs/${encodeURIComponent(title || 'Support')}`;
+    if (domain === 'chewy.com') return `https://careers.chewy.com/us/en/search-results?keywords=${encodeURIComponent(title || 'Support')}`;
+    if (domain === 'metlife.com') return `https://jobs.metlife.com/search/?q=${encodeURIComponent(title || 'Support')}`;
+    if (domain === 'epicgames.com') return `https://www.epicgames.com/site/en-US/careers/jobs?keyword=${encodeURIComponent(title || 'Support')}`;
+    if (domain === 'gitlab.com') return `https://about.gitlab.com/jobs/all-jobs/?search=${encodeURIComponent(title || 'Support')}`;
+    if (domain === 'ncsu.edu') return `https://jobs.ncsu.edu/postings/search?query=${encodeURIComponent(title || 'Support')}`;
+    if (domain === 'dukehealth.org') return `https://careers.dukehealth.org/search/?q=${encodeURIComponent(title || 'Support')}`;
   }
-  return `https://www.google.com/search?q=${encodeURIComponent(`${job.company} ${job.title} careers job posting`)}`;
+
+  // 3. Direct Google Jobs search for the exact job posting
+  return `https://www.google.com/search?q=${encodeURIComponent(`"${company}" "${title}" remote job apply`)}&ibp=htl;jobs`;
 }
 
 /**
@@ -1122,7 +1315,7 @@ export function generateClientSideCoverLetter(
   job: JobOpening,
   companyResearch?: CompanyResearchData | null
 ): CoverLetter {
-  const name = cleanCandidateName(profile.name || 'Joseph Thomas');
+  const name = cleanCandidateName(profile.name, profile.extractedResumeText);
   const role = cleanTitle(profile.title || 'User Support Analyst');
   const company = job.company;
   const skills = profile.primarySkills?.slice(0, 4).join(', ') || 'hardware diagnostics, Active Directory, ServiceNow, and automated computer imaging';
@@ -1135,7 +1328,11 @@ export function generateClientSideCoverLetter(
     `I would welcome the opportunity to discuss how my diagnostic discipline, patient user-centered communication, and deep familiarity with ${skills} will add immediate value to ${company}'s technical operations.`
   ];
 
-  const fullText = `${opening}\n\n${bodyParagraphs.join('\n\n')}\n\nSincerely,\n${name}`;
+  let fullText = `${opening}\n\n${bodyParagraphs.join('\n\n')}\n\nSincerely,\n${name}`;
+  // Sanitize any potential N/A placeholder in signoff or text
+  fullText = fullText
+    .replace(/(?:Sincerely|Warm regards|Best regards|Regards|Cheers)[,\s]+N\/A\b/gi, `Sincerely,\n${name}`)
+    .replace(/\bN\/A\b/g, name);
 
   return {
     jobId: job.id,
