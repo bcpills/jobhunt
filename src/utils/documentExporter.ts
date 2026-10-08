@@ -256,6 +256,15 @@ export function parseResumeContent(options: ResumeExportOptions): ParsedResumeDa
 
   // 3. Summary
   let summary = tailoredResume.targetedSummary || profile?.summary || '';
+  // Strip any accidental hallucinated developer claims if candidate is not an authentic developer
+  if (!/(?:software engineer \|)|(?:software developer \|)/i.test(candidateRawText)) {
+    summary = summary
+      .replace(/\b(?:as a\s+)?(?:software\s+|web\s+|full-stack\s+|frontend\s+|backend\s+)?developer\s+for\s+\d+\s+years\b/gi, 'IT Support and Systems Specialist with enterprise experience')
+      .replace(/\b\d+\+?\s+years(?:\s+of)?(?:\s+experience)?\s+(?:as a\s+)?(?:software\s+)?developer\b/gi, '8+ years of enterprise IT experience')
+      .replace(/\bSoftware Developer\b/g, 'User Support Analyst')
+      .replace(/\bFrontend Developer\b/g, 'User Support Analyst')
+      .replace(/\bFull-Stack Developer\b/g, 'IT Support & Systems Specialist');
+  }
   if (!summary || summary.includes('dedicated technical professional with proven background')) {
     summary = `Accomplished IT Support and Systems Specialist with 8+ years of enterprise experience supporting distributed users, hardware diagnostics, and large-scale workstation environments. Proven expertise in Active Directory domain administration, ServiceNow ticket resolution, automated computer imaging, and vendor warranty logistics.`;
   }
@@ -289,11 +298,31 @@ export function parseResumeContent(options: ResumeExportOptions): ParsedResumeDa
     if (!isPlaceholderCompany(firstCompany)) {
       hasValidTailoredExp = true;
       for (const exp of tailoredResume.tailoredExperience) {
+        let expTitle = exp.role || 'User Support Analyst';
+        const compLower = (exp.company || '').toLowerCase();
+        if (compLower.includes('transportation') || compLower.includes('department of information technology') || compLower.includes('ncdot')) {
+          expTitle = 'User Support Analyst';
+        } else if (compLower.includes('pta pizza')) {
+          expTitle = 'Delivery Driver';
+        } else if (compLower.includes('united zone')) {
+          expTitle = 'Sales / Customer Service';
+        } else if (/developer|software engineer/i.test(expTitle) && !/(?:software engineer \|)|(?:software developer \|)/i.test(candidateRawText)) {
+          expTitle = 'User Support Analyst';
+        }
+
         experiences.push({
-          title: exp.role || 'User Support Analyst',
+          title: expTitle,
           company: exp.company,
           dates: exp.dates || '2018 – Present',
-          bullets: exp.bullets.map((b) => cleanBulletText(b.tailored || (b as any))),
+          bullets: exp.bullets.map((b) => {
+            let cleaned = cleanBulletText(b.tailored || (b as any));
+            if (!/(?:software engineer \|)|(?:software developer \|)/i.test(candidateRawText)) {
+              cleaned = cleaned
+                .replace(/\b(?:as a\s+)?(?:software\s+|web\s+|full-stack\s+|frontend\s+|backend\s+)?developer\s+for\s+\d+\s+years\b/gi, 'technical specialist delivering enterprise systems support')
+                .replace(/\b\d+\+?\s+years(?:\s+of)?(?:\s+experience)?\s+(?:as a\s+)?(?:software\s+)?developer\b/gi, 'enterprise technical support experience');
+            }
+            return cleaned;
+          }),
         });
       }
     }

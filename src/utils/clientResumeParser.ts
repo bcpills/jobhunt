@@ -175,12 +175,27 @@ export function cleanCandidateName(raw?: string, resumeText?: string, fileName?:
 
 /**
  * Normalizes user title to prevent generic placeholders like "Technical Specialist"
+ * and prevents hallucinated developer titles if candidate is an IT/systems support professional
  */
-export function cleanTitle(raw?: string): string {
+export function cleanTitle(raw?: string, resumeText?: string): string {
   if (!raw) return 'User Support Analyst';
   const lower = raw.toLowerCase().trim();
   if (lower === 'technical specialist' || lower === 'specialist' || lower === 'candidate') {
     return 'User Support Analyst';
+  }
+  if (resumeText) {
+    const lowerText = resumeText.toLowerCase();
+    const hasAuthenticDevExperience =
+      lowerText.includes('software engineer |') ||
+      lowerText.includes('software developer |') ||
+      lowerText.includes('web developer |') ||
+      lowerText.includes('title: software developer');
+    if (!hasAuthenticDevExperience && (lower.includes('developer') || lower.includes('software engineer'))) {
+      if (lowerText.includes('user support analyst') || lowerText.includes('ncdot') || lowerText.includes('transportation')) {
+        return 'User Support Analyst';
+      }
+      return 'IT Support & Systems Specialist';
+    }
   }
   return raw;
 }
@@ -558,14 +573,18 @@ export function parseCandidateProfileFromText(
   ];
   for (const line of lines.slice(0, 10)) {
     const lower = line.toLowerCase();
+    // Do not match developer keywords from education or certificate lines
+    if (lower.includes('certificate') || lower.includes('coursework') || lower.includes('school') || lower.includes('college')) {
+      continue;
+    }
     if (titleKeywords.some((kw) => lower.includes(kw)) && line.length < 60 && !line.includes('@')) {
-      detectedTitle = cleanTitle(line.replace(/[|•\(\)]/g, ' ').replace(/\s+/g, ' ').trim());
+      detectedTitle = cleanTitle(line.replace(/[|•\(\)]/g, ' ').replace(/\s+/g, ' ').trim(), text);
       break;
     }
   }
   if (!detectedTitle || detectedTitle === 'User Support Analyst' || detectedTitle.toLowerCase().includes('technical specialist')) {
     const lowerText = text.toLowerCase();
-    if (lowerText.includes('user support analyst') || lowerText.includes('ncdot')) {
+    if (lowerText.includes('user support analyst') || lowerText.includes('ncdot') || lowerText.includes('department of information technology')) {
       detectedTitle = 'User Support Analyst';
     } else if (lowerText.includes('desktop support') || lowerText.includes('it support') || lowerText.includes('technical support') || lowerText.includes('user support')) {
       detectedTitle = 'IT Support & Systems Specialist';
@@ -573,11 +592,11 @@ export function parseCandidateProfileFromText(
       detectedTitle = 'Cloud & DevOps Specialist';
     } else if (lowerText.includes('product manager') || lowerText.includes('senior product')) {
       detectedTitle = 'Product Manager';
-    } else if (lowerText.includes('data engineer') || lowerText.includes('data scientist') || lowerText.includes('analyst')) {
+    } else if (lowerText.includes('data engineer') || lowerText.includes('data scientist')) {
       detectedTitle = 'Data Systems Analyst';
-    } else if (lowerText.includes('frontend') || lowerText.includes('react')) {
+    } else if ((lowerText.includes('frontend developer') || lowerText.includes('react developer')) && !lowerText.includes('support')) {
       detectedTitle = 'Frontend Developer';
-    } else if (lowerText.includes('full-stack') || lowerText.includes('fullstack')) {
+    } else if ((lowerText.includes('full-stack developer') || lowerText.includes('fullstack developer')) && !lowerText.includes('support')) {
       detectedTitle = 'Full-Stack Developer';
     } else if (lowerText.includes('cybersecurity') || lowerText.includes('security analyst')) {
       detectedTitle = 'Cybersecurity Analyst';
@@ -1164,6 +1183,105 @@ export function getJobPostingUrl(job: { company: string; title: string; applyUrl
 }
 
 /**
+ * Strict anti-hallucination sanitizer ensuring candidate's genuine work experience
+ * is preserved and NO fabricated developer roles or "developer for 5 years" claims exist.
+ */
+export function sanitizeTailoredResumeContent(
+  tailored: TailoredResume,
+  originalResumeText?: string,
+  profile?: CandidateProfile | null
+): TailoredResume {
+  const rawText = originalResumeText || profile?.extractedResumeText || '';
+  const lowerText = rawText.toLowerCase();
+
+  // Check if candidate actually held professional developer / software engineer job titles in their work experience
+  const isAuthenticDeveloper =
+    lowerText.includes('software developer |') ||
+    lowerText.includes('software engineer |') ||
+    lowerText.includes('web developer |') ||
+    lowerText.includes('full-stack developer |') ||
+    lowerText.includes('frontend developer |') ||
+    (profile?.workExperience && profile.workExperience.some((exp) =>
+      /developer|software engineer/i.test(exp.role) && !/support|technician/i.test(exp.role)
+    ));
+
+  // If candidate is NOT an authentic developer, enforce 100% strict truthfulness
+  if (!isAuthenticDeveloper) {
+    // 1. Sanitize summary: Eliminate any fabricated "developer for 5 years" or fake software engineering claims
+    if (tailored.targetedSummary) {
+      tailored.targetedSummary = tailored.targetedSummary
+        .replace(/\b(?:as a\s+)?(?:software\s+|web\s+|full-stack\s+|frontend\s+|backend\s+)?developer\s+for\s+\d+\s+years\b/gi, 'IT Support and Systems Specialist with enterprise experience')
+        .replace(/\b\d+\+?\s+years(?:\s+of)?(?:\s+experience)?\s+(?:as a\s+)?(?:software\s+)?developer\b/gi, '8+ years of enterprise IT and systems experience')
+        .replace(/\bsoftware\s+developer\s+with\s+\d+\+?\s+years\b/gi, 'IT Support Specialist with 8+ years')
+        .replace(/\bdeveloper\s+with\s+\d+\+?\s+years\b/gi, 'technical specialist with 8+ years')
+        .replace(/\bFull-Stack Developer\b/gi, 'IT Support & Systems Specialist')
+        .replace(/\bFrontend Developer\b/gi, 'IT Support & Systems Specialist')
+        .replace(/\bSoftware Developer\b/gi, 'User Support Analyst')
+        .replace(/\bSoftware Engineer\b/gi, 'User Support Analyst');
+    }
+
+    // 2. Sanitize tailoredExperience: Preserve genuine roles (e.g. NCDOT -> User Support Analyst)
+    if (tailored.tailoredExperience && tailored.tailoredExperience.length > 0) {
+      tailored.tailoredExperience = tailored.tailoredExperience.map((exp, idx) => {
+        let role = exp.role;
+        const compLower = (exp.company || '').toLowerCase();
+        if (compLower.includes('transportation') || compLower.includes('department of information technology') || compLower.includes('ncdot')) {
+          role = 'User Support Analyst';
+        } else if (compLower.includes('pta pizza')) {
+          role = 'Delivery Driver';
+        } else if (compLower.includes('united zone')) {
+          role = 'Sales / Customer Service';
+        } else if (/developer|software engineer/i.test(role)) {
+          role = profile?.workExperience?.[idx]?.role || profile?.title || 'User Support Analyst';
+          if (/developer|software engineer/i.test(role)) {
+            role = 'User Support Analyst';
+          }
+        }
+
+        const cleanedBullets = (exp.bullets || []).map((b: any) => {
+          const orig = typeof b === 'string' ? b : b.original || '';
+          let tail = typeof b === 'string' ? b : b.tailored || '';
+          const rat = typeof b === 'string' ? '' : b.rationale || '';
+
+          tail = tail
+            .replace(/\b(?:as a\s+)?(?:software\s+|web\s+|full-stack\s+|frontend\s+|backend\s+)?developer\s+for\s+\d+\s+years\b/gi, 'technical specialist delivering enterprise systems support')
+            .replace(/\b\d+\+?\s+years(?:\s+of)?(?:\s+experience)?\s+(?:as a\s+)?(?:software\s+)?developer\b/gi, 'enterprise technical support experience')
+            .replace(/\bworked as a developer\b/gi, 'delivered technical systems support')
+            .replace(/\bdeveloped software applications\b/gi, 'supported enterprise applications and endpoints');
+
+          return {
+            original: orig,
+            tailored: tail,
+            rationale: rat,
+            isHighImpact: b.isHighImpact !== undefined ? b.isHighImpact : true,
+          };
+        });
+
+        return {
+          company: exp.company,
+          role,
+          dates: exp.dates,
+          bullets: cleanedBullets,
+        };
+      });
+    }
+
+    // 3. Sanitize fullMarkdown
+    if (tailored.fullMarkdown) {
+      tailored.fullMarkdown = tailored.fullMarkdown
+        .replace(/###\s*(?:Software\s+Developer|Frontend\s+Developer|Full-Stack\s+Developer|Developer)\s*—\s*(North Carolina Department of Transportation[^\n]*)/gi, '### User Support Analyst — $1')
+        .replace(/\b(?:as a\s+)?(?:software\s+|web\s+|full-stack\s+|frontend\s+|backend\s+)?developer\s+for\s+\d+\s+years\b/gi, 'IT Support and Systems Specialist with enterprise experience')
+        .replace(/\b\d+\+?\s+years(?:\s+of)?(?:\s+experience)?\s+(?:as a\s+)?(?:software\s+)?developer\b/gi, '8+ years of enterprise IT experience')
+        .replace(/\bSoftware Developer\b/g, 'User Support Analyst')
+        .replace(/\bFrontend Developer\b/g, 'User Support Analyst')
+        .replace(/\bFull-Stack Developer\b/g, 'IT Support & Systems Specialist');
+    }
+  }
+
+  return tailored;
+}
+
+/**
  * Generates an authentic tailored resume preserving the candidate's genuine work experience
  */
 export function generateClientSideTailoredResume(
@@ -1171,10 +1289,10 @@ export function generateClientSideTailoredResume(
   job: JobOpening,
   originalResumeText?: string
 ): TailoredResume {
-  const name = cleanCandidateName(profile.name);
-  const role = cleanTitle(profile.title);
-  const skills = profile.primarySkills?.length ? profile.primarySkills : ['Active Directory', 'ServiceNow', 'Hardware Repair', 'Computer Imaging', 'Windows Domain'];
   const rawText = originalResumeText || profile.extractedResumeText || '';
+  const name = cleanCandidateName(profile.name, rawText);
+  const role = cleanTitle(profile.title, rawText);
+  const skills = profile.primarySkills?.length ? profile.primarySkills : ['Active Directory', 'ServiceNow', 'Hardware Repair', 'Computer Imaging', 'Windows Domain'];
 
   // Extract candidate's REAL work history and education
   const parsed = extractWorkExperienceAndEducationFromText(rawText);
@@ -1260,7 +1378,7 @@ export function generateClientSideTailoredResume(
   });
 
   // Build authentic markdown resume with genuine contact line
-  const cleanName = cleanCandidateName(profile.name);
+  const cleanName = cleanCandidateName(profile.name, rawText);
   const contactLine = extractContactLine(profile, rawText);
 
   const markdownLines: string[] = [
@@ -1291,7 +1409,7 @@ export function generateClientSideTailoredResume(
     }
   }
 
-  return {
+  const tailoredResult: TailoredResume = {
     jobId: job.id,
     jobTitle: job.title,
     company: job.company,
@@ -1308,6 +1426,8 @@ export function generateClientSideTailoredResume(
     ],
     fullMarkdown: markdownLines.join('\n')
   };
+
+  return sanitizeTailoredResumeContent(tailoredResult, rawText, profile);
 }
 
 export function generateClientSideCoverLetter(

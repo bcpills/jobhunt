@@ -5,6 +5,7 @@ import {
   generateClientSideTailoredResume,
   generateClientSideCoverLetter,
   generateClientSideCompanyResearch,
+  sanitizeTailoredResumeContent,
 } from '../utils/clientResumeParser';
 
 /**
@@ -170,20 +171,25 @@ export async function tailorResumeToRole(params: {
   job: JobOpening;
 }): Promise<TailoredResume> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
     const response = await fetch('/api/jobs/tailor-resume', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (response.ok) {
       const data = await safeParseJsonResponse(response);
       if (data && data.tailoredResume) {
-        return data.tailoredResume;
+        return sanitizeTailoredResumeContent(data.tailoredResume, params.originalResumeText, params.candidateProfile);
       }
     }
   } catch (networkErr) {
-    console.warn('Backend tailor unreachable, generating tailored resume client-side:', networkErr);
+    console.warn('Backend tailor slow or unreachable, generating authentic tailored resume client-side:', networkErr);
   }
 
   return generateClientSideTailoredResume(params.candidateProfile, params.job, params.originalResumeText);

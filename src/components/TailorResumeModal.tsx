@@ -19,7 +19,7 @@ import {
   SlidersHorizontal,
   ExternalLink
 } from 'lucide-react';
-import { getJobPostingUrl } from '../utils/clientResumeParser';
+import { getJobPostingUrl, sanitizeTailoredResumeContent } from '../utils/clientResumeParser';
 import {
   exportTailoredResumePdf,
   exportTailoredResumeDocx,
@@ -58,28 +58,33 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
 
-  // Update markdown buffer when tailoredResume changes with sanitized executive header
+  const effectiveTailoredResume = useMemo(() => {
+    if (!tailoredResume) return null;
+    return sanitizeTailoredResumeContent(tailoredResume, profile?.extractedResumeText, profile || undefined);
+  }, [tailoredResume, profile]);
+
+  // Update markdown buffer when effectiveTailoredResume changes with sanitized executive header
   React.useEffect(() => {
-    if (tailoredResume?.fullMarkdown) {
+    if (effectiveTailoredResume?.fullMarkdown) {
       const cleanName = cleanCandidateName(profile?.name || 'Joseph Thomas');
       const contact = extractContactLine(profile, profile?.extractedResumeText);
-      const sanitized = sanitizeResumeMarkdown(tailoredResume.fullMarkdown, cleanName, contact);
+      const sanitized = sanitizeResumeMarkdown(effectiveTailoredResume.fullMarkdown, cleanName, contact);
       setEditableMarkdown(sanitized);
     }
-  }, [tailoredResume, profile]);
+  }, [effectiveTailoredResume, profile]);
 
   const currentStyleDef = RESUME_STYLES.find((s) => s.id === selectedStyle) || RESUME_STYLES[0];
 
   const parsedResumeData = useMemo(() => {
-    if (!tailoredResume || !job) return null;
+    if (!effectiveTailoredResume || !job) return null;
     return parseResumeContent({
-      tailoredResume,
+      tailoredResume: effectiveTailoredResume,
       job,
       profile,
       editedMarkdown: editableMarkdown,
       styleId: selectedStyle,
     });
-  }, [tailoredResume, job, profile, editableMarkdown, selectedStyle]);
+  }, [effectiveTailoredResume, job, profile, editableMarkdown, selectedStyle]);
 
   if (!isOpen || !job) return null;
 
@@ -91,11 +96,11 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
   };
 
   const handleExportPdf = async () => {
-    if (!tailoredResume || !job) return;
+    if (!effectiveTailoredResume || !job) return;
     setIsExportingPdf(true);
     try {
       await exportTailoredResumePdf({
-        tailoredResume,
+        tailoredResume: effectiveTailoredResume,
         job,
         profile,
         editedMarkdown: editableMarkdown,
@@ -113,11 +118,11 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
   };
 
   const handleExportDocx = async () => {
-    if (!tailoredResume || !job) return;
+    if (!effectiveTailoredResume || !job) return;
     setIsExportingDocx(true);
     try {
       await exportTailoredResumeDocx({
-        tailoredResume,
+        tailoredResume: effectiveTailoredResume,
         job,
         profile,
         editedMarkdown: editableMarkdown,
@@ -235,15 +240,15 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
         )}
 
         {/* Loaded Content */}
-        {!isLoading && tailoredResume && (
+        {!isLoading && effectiveTailoredResume && (
           <>
             {/* Impact Metric & Strategy Banner */}
             <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-indigo-50/60 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/60 flex flex-wrap items-center justify-between gap-2.5 text-xs">
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800 shadow-2xs font-semibold">
-                  <span className="text-slate-500 dark:text-slate-400">Original: {tailoredResume.matchScoreBefore}%</span>
+                  <span className="text-slate-500 dark:text-slate-400">Original: {effectiveTailoredResume.matchScoreBefore}%</span>
                   <ArrowRight className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
-                  <span className="text-emerald-700 dark:text-emerald-400 font-bold">{tailoredResume.matchScoreAfter}% ATS Alignment</span>
+                  <span className="text-emerald-700 dark:text-emerald-400 font-bold">{effectiveTailoredResume.matchScoreAfter}% ATS Alignment</span>
                 </div>
               </div>
 
@@ -299,14 +304,14 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
               {activeTab === 'diff' && (
                 <div className="space-y-6">
                   {/* Strategy Notes */}
-                  {tailoredResume.tailoringStrategyNotes && (
+                  {effectiveTailoredResume.tailoringStrategyNotes && (
                     <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 space-y-2">
                       <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
                         <TrendingUp className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                         <span>Tailoring Strategy for this Opening</span>
                       </h4>
                       <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-400">
-                        {tailoredResume.tailoringStrategyNotes.map((note, idx) => (
+                        {effectiveTailoredResume.tailoringStrategyNotes.map((note, idx) => (
                           <li key={idx} className="flex items-start gap-1.5">
                             <span className="text-indigo-600 dark:text-indigo-400 font-bold">•</span>
                             <span>{note}</span>
@@ -317,13 +322,13 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                   )}
 
                   {/* ATS Keywords Integrated */}
-                  {tailoredResume.atsKeywordsAdded && tailoredResume.atsKeywordsAdded.length > 0 && (
+                  {effectiveTailoredResume.atsKeywordsAdded && effectiveTailoredResume.atsKeywordsAdded.length > 0 && (
                     <div>
                       <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
                         Target Keywords Injected from Job Description
                       </h4>
                       <div className="flex flex-wrap gap-1.5">
-                        {tailoredResume.atsKeywordsAdded.map((kw, idx) => (
+                        {effectiveTailoredResume.atsKeywordsAdded.map((kw, idx) => (
                           <span
                             key={idx}
                             className="text-xs font-medium text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 px-2.5 py-0.5 rounded-md flex items-center gap-1"
@@ -337,13 +342,13 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                   )}
 
                   {/* Targeted Summary */}
-                  {tailoredResume.targetedSummary && (
+                  {effectiveTailoredResume.targetedSummary && (
                     <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-white dark:bg-slate-800/50 space-y-1.5">
                       <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
                         Tailored Executive Summary
                       </span>
                       <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-serif">
-                        {tailoredResume.targetedSummary}
+                        {effectiveTailoredResume.targetedSummary}
                       </p>
                     </div>
                   )}
@@ -354,7 +359,7 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                       Elevated Work Experience & Key Achievements
                     </h4>
 
-                    {(tailoredResume.tailoredExperience || []).map((exp, expIdx) => (
+                    {(effectiveTailoredResume.tailoredExperience || []).map((exp, expIdx) => (
                       <div key={expIdx} className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-800/40">
                         <div className="bg-slate-50 dark:bg-slate-800/80 px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                           <span className="text-xs font-bold text-slate-900 dark:text-white">

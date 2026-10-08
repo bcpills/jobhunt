@@ -12,7 +12,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+function resolvePort(): number {
+  const portArgIdx = process.argv.findIndex((a) => a === '--port' || a === '-p');
+  if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
+    const p = parseInt(process.argv[portArgIdx + 1], 10);
+    if (!isNaN(p)) return p;
+  }
+  if (process.env.PORT && process.env.PORT !== '8080') {
+    const p = parseInt(process.env.PORT, 10);
+    if (!isNaN(p)) return p;
+  }
+  return 3000;
+}
+
+const PORT = resolvePort();
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
@@ -454,6 +467,120 @@ function sanitizeResumeMarkdown(
   return result.join('\n');
 }
 
+function cleanTitle(raw?: string, resumeText?: string): string {
+  if (!raw) return 'User Support Analyst';
+  const lower = raw.toLowerCase().trim();
+  if (lower === 'technical specialist' || lower === 'specialist' || lower === 'candidate') {
+    return 'User Support Analyst';
+  }
+  if (resumeText) {
+    const lowerText = resumeText.toLowerCase();
+    const hasAuthenticDevExperience =
+      lowerText.includes('software engineer |') ||
+      lowerText.includes('software developer |') ||
+      lowerText.includes('web developer |') ||
+      lowerText.includes('title: software developer');
+    if (!hasAuthenticDevExperience && (lower.includes('developer') || lower.includes('software engineer'))) {
+      if (lowerText.includes('user support analyst') || lowerText.includes('ncdot') || lowerText.includes('transportation')) {
+        return 'User Support Analyst';
+      }
+      return 'IT Support & Systems Specialist';
+    }
+  }
+  return raw;
+}
+
+function sanitizeTailoredResumeContent(
+  tailored: any,
+  originalResumeText?: string,
+  candidateProfile?: any
+): any {
+  if (!tailored) return tailored;
+  const rawText = originalResumeText || candidateProfile?.extractedResumeText || '';
+  const lowerText = rawText.toLowerCase();
+
+  const isAuthenticDeveloper =
+    lowerText.includes('software developer |') ||
+    lowerText.includes('software engineer |') ||
+    lowerText.includes('web developer |') ||
+    lowerText.includes('full-stack developer |') ||
+    lowerText.includes('frontend developer |') ||
+    (candidateProfile?.workExperience && candidateProfile.workExperience.some((exp: any) =>
+      /developer|software engineer/i.test(exp.role) && !/support|technician/i.test(exp.role)
+    ));
+
+  if (!isAuthenticDeveloper) {
+    if (tailored.targetedSummary) {
+      tailored.targetedSummary = tailored.targetedSummary
+        .replace(/\b(?:as a\s+)?(?:software\s+|web\s+|full-stack\s+|frontend\s+|backend\s+)?developer\s+for\s+\d+\s+years\b/gi, 'IT Support and Systems Specialist with enterprise experience')
+        .replace(/\b\d+\+?\s+years(?:\s+of)?(?:\s+experience)?\s+(?:as a\s+)?(?:software\s+)?developer\b/gi, '8+ years of enterprise IT and systems experience')
+        .replace(/\bsoftware\s+developer\s+with\s+\d+\+?\s+years\b/gi, 'IT Support Specialist with 8+ years')
+        .replace(/\bdeveloper\s+with\s+\d+\+?\s+years\b/gi, 'technical specialist with 8+ years')
+        .replace(/\bFull-Stack Developer\b/gi, 'IT Support & Systems Specialist')
+        .replace(/\bFrontend Developer\b/gi, 'IT Support & Systems Specialist')
+        .replace(/\bSoftware Developer\b/gi, 'User Support Analyst')
+        .replace(/\bSoftware Engineer\b/gi, 'User Support Analyst');
+    }
+
+    if (tailored.tailoredExperience && Array.isArray(tailored.tailoredExperience)) {
+      tailored.tailoredExperience = tailored.tailoredExperience.map((exp: any, idx: number) => {
+        let role = exp.role || 'User Support Analyst';
+        const compLower = (exp.company || '').toLowerCase();
+        if (compLower.includes('transportation') || compLower.includes('department of information technology') || compLower.includes('ncdot')) {
+          role = 'User Support Analyst';
+        } else if (compLower.includes('pta pizza')) {
+          role = 'Delivery Driver';
+        } else if (compLower.includes('united zone')) {
+          role = 'Sales / Customer Service';
+        } else if (/developer|software engineer/i.test(role)) {
+          role = candidateProfile?.workExperience?.[idx]?.role || candidateProfile?.title || 'User Support Analyst';
+          if (/developer|software engineer/i.test(role)) {
+            role = 'User Support Analyst';
+          }
+        }
+
+        const cleanedBullets = (exp.bullets || []).map((b: any) => {
+          const orig = typeof b === 'string' ? b : b.original || '';
+          let tail = typeof b === 'string' ? b : b.tailored || '';
+          const rat = typeof b === 'string' ? '' : b.rationale || '';
+
+          tail = tail
+            .replace(/\b(?:as a\s+)?(?:software\s+|web\s+|full-stack\s+|frontend\s+|backend\s+)?developer\s+for\s+\d+\s+years\b/gi, 'technical specialist delivering enterprise systems support')
+            .replace(/\b\d+\+?\s+years(?:\s+of)?(?:\s+experience)?\s+(?:as a\s+)?(?:software\s+)?developer\b/gi, 'enterprise technical support experience')
+            .replace(/\bworked as a developer\b/gi, 'delivered technical systems support')
+            .replace(/\bdeveloped software applications\b/gi, 'supported enterprise applications and endpoints');
+
+          return {
+            original: orig,
+            tailored: tail,
+            rationale: rat,
+            isHighImpact: b.isHighImpact !== undefined ? b.isHighImpact : true,
+          };
+        });
+
+        return {
+          company: exp.company,
+          role,
+          dates: exp.dates,
+          bullets: cleanedBullets,
+        };
+      });
+    }
+
+    if (tailored.fullMarkdown) {
+      tailored.fullMarkdown = tailored.fullMarkdown
+        .replace(/###\s*(?:Software\s+Developer|Frontend\s+Developer|Full-Stack\s+Developer|Developer)\s*—\s*(North Carolina Department of Transportation[^\n]*)/gi, '### User Support Analyst — $1')
+        .replace(/\b(?:as a\s+)?(?:software\s+|web\s+|full-stack\s+|frontend\s+|backend\s+)?developer\s+for\s+\d+\s+years\b/gi, 'IT Support and Systems Specialist with enterprise experience')
+        .replace(/\b\d+\+?\s+years(?:\s+of)?(?:\s+experience)?\s+(?:as a\s+)?(?:software\s+)?developer\b/gi, '8+ years of enterprise IT experience')
+        .replace(/\bSoftware Developer\b/g, 'User Support Analyst')
+        .replace(/\bFrontend Developer\b/g, 'User Support Analyst')
+        .replace(/\bFull-Stack Developer\b/g, 'IT Support & Systems Specialist');
+    }
+  }
+
+  return tailored;
+}
+
 // Helper: heuristic resume parser when LLM or multimodal analysis is unavailable
 function extractFallbackProfileFromText(text: string, fileName?: string): any {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -500,26 +627,29 @@ function extractFallbackProfileFromText(text: string, fileName?: string): any {
   ];
   for (const line of lines.slice(0, 10)) {
     const lower = line.toLowerCase();
+    if (lower.includes('certificate') || lower.includes('coursework') || lower.includes('school') || lower.includes('college')) {
+      continue;
+    }
     if (titleKeywords.some((kw) => lower.includes(kw)) && line.length < 60 && !line.includes('@')) {
-      detectedTitle = line.replace(/[|•\(\)]/g, ' ').trim();
+      detectedTitle = cleanTitle(line.replace(/[|•\(\)]/g, ' ').trim(), text);
       break;
     }
   }
   if (!detectedTitle || detectedTitle.toLowerCase().includes('technical specialist') || detectedTitle === 'Specialist') {
     const lowerText = text.toLowerCase();
-    if (lowerText.includes('user support analyst') || lowerText.includes('ncdot')) {
+    if (lowerText.includes('user support analyst') || lowerText.includes('ncdot') || lowerText.includes('department of information technology')) {
       detectedTitle = 'User Support Analyst';
-    } else if (lowerText.includes('desktop support') || lowerText.includes('it support') || lowerText.includes('technical support')) {
+    } else if (lowerText.includes('desktop support') || lowerText.includes('it support') || lowerText.includes('technical support') || lowerText.includes('user support')) {
       detectedTitle = 'IT & Desktop Support Specialist';
     } else if (lowerText.includes('devops') || lowerText.includes('site reliability') || lowerText.includes('cloud engineer') || lowerText.includes('sre')) {
       detectedTitle = 'Senior DevOps / Cloud Engineer';
     } else if (lowerText.includes('product manager') || lowerText.includes('senior product')) {
       detectedTitle = 'Senior Product Manager';
-    } else if (lowerText.includes('data engineer') || lowerText.includes('data scientist') || lowerText.includes('machine learning')) {
+    } else if (lowerText.includes('data engineer') || lowerText.includes('data scientist')) {
       detectedTitle = 'Senior Data & ML Engineer';
-    } else if (lowerText.includes('frontend') || lowerText.includes('react')) {
+    } else if ((lowerText.includes('frontend developer') || lowerText.includes('react developer')) && !lowerText.includes('support')) {
       detectedTitle = 'Frontend Engineer';
-    } else if (lowerText.includes('full-stack') || lowerText.includes('fullstack') || lowerText.includes('full stack')) {
+    } else if ((lowerText.includes('full-stack developer') || lowerText.includes('full stack developer')) && !lowerText.includes('support')) {
       detectedTitle = 'Senior Full-Stack Engineer';
     } else if (lowerText.includes('cybersecurity') || lowerText.includes('security analyst') || lowerText.includes('soc')) {
       detectedTitle = 'Cybersecurity Analyst';
@@ -1656,7 +1786,8 @@ app.post('/api/jobs/tailor-resume', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Original resume and job data are required.' });
     }
 
-    const prompt = `You are a world-class executive resume writer and ATS optimization specialist.
+    const candTitle = cleanTitle(candidateProfile?.title, originalResumeText);
+    const prompt = `You are a world-class executive resume writer, certified career coach, and ATS optimization specialist.
 A candidate is applying for the following remote job opening:
 
 TARGET JOB:
@@ -1667,16 +1798,29 @@ TARGET JOB:
 - Key Responsibilities: ${(job.keyResponsibilities || []).join('; ')}
 - Requirements: ${(job.requirements || []).join('; ')}
 
-CANDIDATE CURRENT RESUME:
+CANDIDATE CURRENT RESUME (GROUND TRUTH):
 ${originalResumeText}
 
-TASK:
-1. Tailor the candidate's resume specifically for this ${job.title} position at ${job.company}.
-2. ABSOLUTE REQUIREMENT: You MUST preserve the candidate's REAL work history. Keep their exact employers, companies, job titles, and dates from their resume. Never fabricate fictional companies (e.g. do not invent "Tech Scaleup" or "Enterprise Solutions").
-3. Elevate and polish the candidate's actual work experience bullet points: emphasize their genuine technical troubleshooting, systems administration, and user support achievements while seamlessly integrating keywords from the job description.
-4. DO NOT write meta-commentary or formulas such as "(Google XYZ formula)", "(Google XYZ)", or "(XYZ)" in the bullet text. Every bullet point must read as an authentic, high-impact accomplishment.
-5. In fullMarkdown, provide a complete, executive-grade formatted resume ready for hiring managers. Do NOT include markdown backtick lists of ATS keywords or meta sections like "ATS KEYWORDS INTEGRATED FOR...".
-6. CONTACT HEADER: The candidate's name is "${cleanCandidateName(candidateProfile?.name)}". In fullMarkdown, start with "# ${cleanCandidateName(candidateProfile?.name).toUpperCase()}" followed immediately by "${extractContactLine(candidateProfile, originalResumeText)}". DO NOT write "IT Resume", "0000000000", "California (CA)", or subtitle "TECHNICAL SPECIALIST".
+CANDIDATE AUTHENTIC PROFILE:
+- Name: ${cleanCandidateName(candidateProfile?.name)}
+- Actual Job Title: ${candTitle}
+
+CRITICAL TRUTHFULNESS & ZERO-HALLUCINATION RULES:
+1. ABSOLUTE TRUTHFULNESS — NEVER FABRICATE JOB HISTORY:
+   - The candidate's real work history is SACROSANCT.
+   - If the candidate is NOT a software developer/engineer in their original resume, NEVER state or imply they are a developer or software engineer.
+   - NEVER write or claim that the candidate has "been a developer for 5 years", "worked as a developer for 5 years", or has "5+ years of software development experience".
+   - Under NO circumstances should you change their past job titles to developer titles (e.g., if their resume says "User Support Analyst", keep it as "User Support Analyst", NEVER change it to "Software Developer", "Frontend Developer", or "Full-Stack Developer").
+   - NEVER invent software engineering accomplishments, coding projects, or programming years they did not have.
+2. HOW TO TAILOR ETHICALLY & TRUTHFULLY:
+   - When tailoring for any position (including technical, engineering, or developer roles), emphasize their REAL transferable strengths: technical troubleshooting, systems administration, diagnostic rigor, workstation configuration, Active Directory, ServiceNow, IT asset management, user communication, and foundational computing literacy.
+   - Show how their ACTUAL background and analytical problem-solving bridge to this role at ${job.company}, WITHOUT lying, exaggerating, or inventing fake job history.
+3. PRESERVE EXACT EMPLOYERS, ROLES, AND DATES:
+   - In "tailoredExperience", the "company", "role", and "dates" fields MUST EXACTLY MATCH their real resume.
+   - Polish each bullet point by sharpening the action verbs and metrics while staying 100% faithful to the work they actually performed in that role.
+4. CONTACT HEADER:
+   - The candidate's name is "${cleanCandidateName(candidateProfile?.name)}".
+   - In fullMarkdown, start with "# ${cleanCandidateName(candidateProfile?.name).toUpperCase()}" followed immediately by "${extractContactLine(candidateProfile, originalResumeText)}". DO NOT write "IT Resume", "0000000000", "California (CA)", or subtitle "TECHNICAL SPECIALIST".
 
 Return a valid JSON object with the following schema:
 {
@@ -1685,7 +1829,7 @@ Return a valid JSON object with the following schema:
   "company": "${job.company}",
   "matchScoreBefore": ${job.matchScore || 80},
   "matchScoreAfter": 98,
-  "targetedSummary": "Targeted 3-sentence summary highlighting key alignment...",
+  "targetedSummary": "Targeted 3-sentence summary highlighting genuine alignment...",
   "tailoredExperience": [
     {
       "company": "Exact Company Name from Resume",
@@ -1694,7 +1838,7 @@ Return a valid JSON object with the following schema:
       "bullets": [
         {
           "original": "Original bullet from resume",
-          "tailored": "Polished, high-impact achievement bullet point tailored to the target role",
+          "tailored": "Polished, high-impact achievement bullet point faithful to their actual work",
           "rationale": "Why this change strengthens the application",
           "isHighImpact": true
         }
@@ -1903,10 +2047,13 @@ ${exp.bullets.map((b: any) => `• ${b.tailored}`).join('\n')}`).join('\n\n')}
       };
     }
 
-    if (parsed && parsed.fullMarkdown) {
-      const cleanName = cleanCandidateName(candidateProfile?.name || 'Joseph Thomas');
-      const contactLine = extractContactLine(candidateProfile, originalResumeText);
-      parsed.fullMarkdown = sanitizeResumeMarkdown(parsed.fullMarkdown, cleanName, contactLine);
+    if (parsed) {
+      parsed = sanitizeTailoredResumeContent(parsed, originalResumeText, candidateProfile);
+      if (parsed.fullMarkdown) {
+        const cleanName = cleanCandidateName(candidateProfile?.name || 'Joseph Thomas');
+        const contactLine = extractContactLine(candidateProfile, originalResumeText);
+        parsed.fullMarkdown = sanitizeResumeMarkdown(parsed.fullMarkdown, cleanName, contactLine);
+      }
     }
 
     return res.json({ tailoredResume: parsed });
@@ -1946,7 +2093,7 @@ TARGET ROLE:
 
 CANDIDATE PROFILE:
 - Name: ${candName}
-- Title: ${candidateProfile?.title || 'User Support Analyst'}
+- Title: ${cleanTitle(candidateProfile?.title, rawResume)}
 - Experience Summary: ${candidateProfile?.summary || ''}
 - Core Skills: ${(candidateProfile?.primarySkills || []).join(', ')}
 - Resume Excerpt:
@@ -1963,6 +2110,7 @@ COVER LETTER GUIDELINES:
 3. REMOTE EXCELLENCE: Seamlessly weave in evidence of self-direction, high async communication clarity, and autonomy.
 4. CALL TO ACTION: A confident, low-friction closing proposing a conversational next step.
 5. CANDIDATE NAME RULE: Always sign off directly with "${candName}". Under NO circumstances should you output "N/A", "[Your Name]", or any placeholder in the letter.
+6. STRICT TRUTHFULNESS RULE: If the candidate is NOT a developer/software engineer in their resume, NEVER claim they are a developer, have been a developer for 5 years, or build software. Emphasize their genuine technical troubleshooting, enterprise systems administration, and user enablement track record.
 
 Return a valid JSON object:
 {
@@ -2267,8 +2415,16 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  });
+
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`Port ${PORT} is in use; server process may already be listening.`);
+    } else {
+      console.error('Server listen error:', err);
+    }
   });
 }
 
