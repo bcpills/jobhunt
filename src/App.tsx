@@ -931,6 +931,9 @@ export default function App() {
         profile={profile}
         isLoading={isTailoring}
         onRetry={() => selectedJob && handleTailorResume(selectedJob)}
+        coverLetter={coverLetter}
+        onGenerateCoverLetter={(job, prefs) => handleGenerateCoverLetter(job, prefs)}
+        isGeneratingCoverLetter={isGeneratingCoverLetter}
       />
 
       <CoverLetterModal

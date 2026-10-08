@@ -30,6 +30,7 @@ export interface CoverLetterExportOptions {
   job: JobOpening;
   profile?: CandidateProfile | null;
   editedText?: string;
+  styleId?: ResumeStyleId;
 }
 
 /**
@@ -1177,7 +1178,7 @@ export async function exportProfileResumeDocx(options: {
  * ============================================================================
  */
 export async function exportCoverLetterPdf(options: CoverLetterExportOptions): Promise<void> {
-  const { coverLetter, job, profile, editedText } = options;
+  const { coverLetter, job, profile, editedText, styleId = 'modern' } = options;
   const doc = new jsPDF({
     unit: 'mm',
     format: 'letter',
@@ -1185,7 +1186,7 @@ export async function exportCoverLetterPdf(options: CoverLetterExportOptions): P
 
   const pageWidth = 215.9;
   const pageHeight = 279.4;
-  const margin = 20;
+  const margin = styleId === 'minimal' ? 22 : styleId === 'technical' ? 18 : 20;
   const contentWidth = pageWidth - margin * 2;
   let y = margin;
 
@@ -1197,43 +1198,104 @@ export async function exportCoverLetterPdf(options: CoverLetterExportOptions): P
     year: 'numeric',
   });
 
-  // Candidate Name Header (Clean)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(15, 23, 42); // slate-900
-  doc.text(candidateName.toUpperCase(), margin, y);
-  y += 6;
+  const fontName = styleId === 'ivy' ? 'times' : 'helvetica';
 
-  // Contact line
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105); // slate-600
-  doc.text(contactLine, margin, y);
-  y += 4;
-
-  // Divider
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.4);
-  doc.line(margin, y, margin + contentWidth, y);
-  y += 8;
+  if (styleId === 'modern') {
+    // Modern: Left accent bar
+    doc.setFillColor(79, 70, 229);
+    doc.rect(margin, y, 2.5, 13, 'F');
+    doc.setFont(fontName, 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(15, 23, 42);
+    doc.text(candidateName.toUpperCase(), margin + 5, y + 5);
+    doc.setFont(fontName, 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text(contactLine, margin + 5, y + 10.5);
+    y += 18;
+  } else if (styleId === 'ivy') {
+    // Ivy: Centered classic serif letterhead
+    doc.setFont('times', 'bold');
+    doc.setFontSize(19);
+    doc.setTextColor(28, 25, 23);
+    doc.text(candidateName.toUpperCase(), pageWidth / 2, y + 3, { align: 'center' });
+    y += 9;
+    doc.setFont('times', 'italic');
+    doc.setFontSize(8.5);
+    doc.setTextColor(87, 83, 78);
+    doc.text(contactLine.replace(/•/g, ' ✦ '), pageWidth / 2, y, { align: 'center' });
+    y += 4;
+    doc.setDrawColor(214, 211, 209);
+    doc.setLineWidth(0.4);
+    doc.line(pageWidth / 2 - 35, y, pageWidth / 2 + 35, y);
+    y += 9;
+  } else if (styleId === 'technical') {
+    // Technical: Teal top border & clean metadata
+    doc.setFillColor(13, 148, 136);
+    doc.rect(margin, y, contentWidth, 1.8, 'F');
+    y += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(17);
+    doc.setTextColor(15, 23, 42);
+    doc.text(candidateName, margin, y);
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(51, 65, 85);
+    doc.text(contactLine, margin, y);
+    y += 8;
+  } else if (styleId === 'minimal') {
+    // Minimal: Simple clean left alignment
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(17, 24, 39);
+    doc.text(candidateName.toUpperCase(), margin, y);
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text(contactLine.replace(/•/g, ' / '), margin, y);
+    y += 4;
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, margin + contentWidth, y);
+    y += 8;
+  } else {
+    // Executive: Deep navy divider & authoritative header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(15, 23, 42);
+    doc.text(candidateName.toUpperCase(), margin, y);
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text(contactLine, margin, y);
+    y += 4;
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.7);
+    doc.line(margin, y, margin + contentWidth, y);
+    y += 8;
+  }
 
   // Date
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(fontName, 'normal');
   doc.setFontSize(9.5);
   doc.setTextColor(71, 85, 105);
   doc.text(dateStr, margin, y);
   y += 7;
 
   // Recipient / Company
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(fontName, 'bold');
   doc.setFontSize(10);
   doc.setTextColor(15, 23, 42);
   doc.text(`Hiring Team  •  ${job.company}`, margin, y);
   y += 5;
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(fontName, 'normal');
   doc.setFontSize(9.5);
-  doc.setTextColor(67, 56, 202);
+  const roleColor = styleId === 'technical' ? [13, 148, 136] : styleId === 'ivy' ? [136, 19, 55] : [67, 56, 202];
+  doc.setTextColor(roleColor[0], roleColor[1], roleColor[2]);
   doc.text(`Position: ${job.title} (${job.workArrangement})`, margin, y);
   y += 8;
 
@@ -1245,7 +1307,7 @@ export async function exportCoverLetterPdf(options: CoverLetterExportOptions): P
     .replace(/\bN\/A\b/g, candidateName);
   const rawParagraphs = fullText.split('\n\n').filter((p) => p.trim().length > 0);
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(fontName, 'normal');
   doc.setFontSize(10);
   doc.setTextColor(30, 41, 59);
 
@@ -1267,7 +1329,7 @@ export async function exportCoverLetterPdf(options: CoverLetterExportOptions): P
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(fontName, 'normal');
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
     doc.text(
@@ -1289,7 +1351,7 @@ export async function exportCoverLetterPdf(options: CoverLetterExportOptions): P
  * ============================================================================
  */
 export async function exportCoverLetterDocx(options: CoverLetterExportOptions): Promise<void> {
-  const { coverLetter, job, profile, editedText } = options;
+  const { coverLetter, job, profile, editedText, styleId = 'modern' } = options;
   const candidateName = cleanCandidateName(profile?.name, profile?.extractedResumeText);
   const contactLine = extractContactLine(profile, profile?.extractedResumeText);
   const dateStr = new Date().toLocaleDateString('en-US', {
@@ -1297,6 +1359,13 @@ export async function exportCoverLetterDocx(options: CoverLetterExportOptions): 
     day: 'numeric',
     year: 'numeric',
   });
+
+  const font = styleId === 'ivy' ? 'Times New Roman' : 'Arial';
+  const accentColor =
+    styleId === 'modern' ? '4F46E5' :
+    styleId === 'executive' ? '0F172A' :
+    styleId === 'ivy' ? '881337' :
+    styleId === 'technical' ? '0D9488' : '475569';
 
   let fullText = (editedText || coverLetter.fullText || '').trim();
   // Sanitize any N/A placeholder in signoff or text
@@ -1309,13 +1378,14 @@ export async function exportCoverLetterDocx(options: CoverLetterExportOptions): 
     // Header Candidate Name
     new Paragraph({
       spacing: { after: 80 },
+      alignment: styleId === 'ivy' ? AlignmentType.CENTER : AlignmentType.LEFT,
       children: [
         new TextRun({
           text: candidateName.toUpperCase(),
           bold: true,
           size: 28, // 14pt
-          color: '0F172A',
-          font: 'Arial',
+          color: styleId === 'ivy' ? '1C1917' : '0F172A',
+          font,
         }),
       ],
     }),
@@ -1323,9 +1393,10 @@ export async function exportCoverLetterDocx(options: CoverLetterExportOptions): 
     // Contact
     new Paragraph({
       spacing: { after: 180 },
+      alignment: styleId === 'ivy' ? AlignmentType.CENTER : AlignmentType.LEFT,
       border: {
         bottom: {
-          color: 'CBD5E1',
+          color: accentColor,
           space: 6,
           style: BorderStyle.SINGLE,
           size: 6,
@@ -1333,10 +1404,10 @@ export async function exportCoverLetterDocx(options: CoverLetterExportOptions): 
       },
       children: [
         new TextRun({
-          text: contactLine,
+          text: styleId === 'ivy' ? contactLine.replace(/•/g, ' ✦ ') : contactLine,
           size: 19,
           color: '475569',
-          font: 'Arial',
+          font,
         }),
       ],
     }),
@@ -1349,7 +1420,7 @@ export async function exportCoverLetterDocx(options: CoverLetterExportOptions): 
           text: dateStr,
           size: 20,
           color: '475569',
-          font: 'Arial',
+          font,
         }),
       ],
     }),
@@ -1363,7 +1434,7 @@ export async function exportCoverLetterDocx(options: CoverLetterExportOptions): 
           bold: true,
           size: 20,
           color: '0F172A',
-          font: 'Arial',
+          font,
         }),
       ],
     }),
@@ -1375,8 +1446,8 @@ export async function exportCoverLetterDocx(options: CoverLetterExportOptions): 
           text: `Re: Application for ${job.title} (${job.workArrangement})`,
           bold: true,
           size: 20,
-          color: '4338CA',
-          font: 'Arial',
+          color: accentColor,
+          font,
         }),
       ],
     }),
@@ -1397,7 +1468,7 @@ export async function exportCoverLetterDocx(options: CoverLetterExportOptions): 
                 text: line,
                 size: 21,
                 color: '1E293B',
-                font: 'Arial',
+                font,
                 bold: idx > 0 && line.length < 40,
               }),
             ],
@@ -1413,7 +1484,7 @@ export async function exportCoverLetterDocx(options: CoverLetterExportOptions): 
               text: para.trim().replace(/\n/g, ' '),
               size: 21,
               color: '1E293B',
-              font: 'Arial',
+              font,
             }),
           ],
         })
