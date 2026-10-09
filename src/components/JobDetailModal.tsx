@@ -87,8 +87,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               </a>
 
               <span className="text-slate-300 dark:text-slate-700">·</span>
-              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800">
-                {job.matchScore}% Match ({job.matchTier})
+              <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                job.matchTier === 'Stretch Role'
+                  ? 'text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 border-amber-300/80 dark:border-amber-800 shadow-2xs'
+                  : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/80 dark:border-emerald-800'
+              }`}>
+                {job.matchTier === 'Stretch Role' ? '🚀 ' : ''}{job.matchScore}% Match ({job.matchTier})
               </span>
 
               {/* Applied Indicator Badge */}

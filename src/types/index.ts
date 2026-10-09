@@ -234,6 +234,8 @@ export interface JobFilterState {
   minMatchScore: number;
   region: string;
   sortBy?: 'overallMatch' | 'trajectoryFit' | 'cultureFit' | 'skillOverlap' | 'salaryLowToHigh' | 'salaryHighToLow';
+  includeStretchRoles?: boolean; // When true, includes stretch roles, reach openings, and higher-tier opportunities
+  matchTierFilter?: 'all' | 'achievableOnly' | 'stretchOnly';
 }
 
 export type ResumeStyleId = 'executive' | 'modern' | 'ivy' | 'minimal' | 'technical';

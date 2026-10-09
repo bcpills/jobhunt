@@ -28,7 +28,8 @@ import {
   Mail,
   Edit3,
   Sliders,
-  CheckCircle2
+  CheckCircle2,
+  ShieldCheck
 } from 'lucide-react';
 import { getJobPostingUrl, sanitizeTailoredResumeContent } from '../utils/clientResumeParser';
 import {
@@ -98,7 +99,13 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
     if (effectiveTailoredResume?.fullMarkdown) {
       const cleanName = cleanCandidateName(profile?.name || 'Joseph Thomas');
       const contact = extractContactLine(profile, profile?.extractedResumeText);
-      const sanitized = sanitizeResumeMarkdown(effectiveTailoredResume.fullMarkdown, cleanName, contact);
+      const sanitized = sanitizeResumeMarkdown(
+        effectiveTailoredResume.fullMarkdown,
+        cleanName,
+        contact,
+        profile,
+        profile?.extractedResumeText
+      );
       setEditableMarkdown(sanitized);
     }
   }, [effectiveTailoredResume, profile]);
@@ -436,9 +443,11 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
                       </button>
                     </div>
 
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                      <span>Ready to export in </span>
-                      <strong className="text-indigo-600 dark:text-indigo-400">{currentStyleDef.name}</strong>
+                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                        <ShieldCheck className="w-3.5 h-3.5" /> Original job titles intact
+                      </span>
+                      <span>Ready to export in <strong className="text-indigo-600 dark:text-indigo-400">{currentStyleDef.name}</strong></span>
                     </div>
                   </div>
 
@@ -723,16 +732,26 @@ export const TailorResumeModal: React.FC<TailorResumeModalProps> = ({
 
                   {/* Experience Bullet Comparisons */}
                   <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Elevated Work Experience & Key Achievements
-                    </h4>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1">
+                      <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        Elevated Work Experience & Key Achievements
+                      </h4>
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" /> Authentic past job titles preserved · Duties aligned
+                      </span>
+                    </div>
 
                     {(effectiveTailoredResume.tailoredExperience || []).map((exp, expIdx) => (
                       <div key={expIdx} className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-800/40">
                         <div className="bg-slate-50 dark:bg-slate-800/80 px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-900 dark:text-white">
-                            {exp.role} · {exp.company}
-                          </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                              {exp.role} · {exp.company}
+                            </span>
+                            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                              <Check className="w-2.5 h-2.5" /> Original Title Intact
+                            </span>
+                          </div>
                           <span className="text-[11px] text-slate-500 dark:text-slate-400">{exp.dates}</span>
                         </div>
 

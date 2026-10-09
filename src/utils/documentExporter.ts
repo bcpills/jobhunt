@@ -14,7 +14,9 @@ import {
   extractWorkExperienceAndEducationFromText,
   cleanCandidateName as parseCleanCandidateName,
   isInvalidCandidateName,
-  extractCandidateNameFromText
+  extractCandidateNameFromText,
+  getAuthenticOriginalExperiences,
+  findMatchingOriginalExperience
 } from './clientResumeParser';
 
 export interface ResumeExportOptions {
@@ -74,7 +76,9 @@ export function cleanTitle(raw?: string): string {
 export function sanitizeResumeMarkdown(
   markdown: string,
   candidateName?: string,
-  contactLine?: string
+  contactLine?: string,
+  profile?: CandidateProfile | null,
+  rawText?: string
 ): string {
   if (!markdown) return '';
   const cleanName = cleanCandidateName(candidateName || 'Joseph Thomas');
@@ -82,12 +86,14 @@ export function sanitizeResumeMarkdown(
     ? contactLine
     : '919-656-1120  •  Thomasjoe55@gmail.com  •  Wake Forest, NC';
 
+  const originalExperiences = getAuthenticOriginalExperiences(profile, rawText);
+
   const lines = markdown.split('\n');
   const result: string[] = [];
   let headerReplaced = false;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    let line = lines[i];
     const upper = line.trim().toUpperCase();
 
     if (!headerReplaced) {
@@ -112,6 +118,25 @@ export function sanitizeResumeMarkdown(
       }
       // Discard pre-summary headers (strips "IT Resume", "0000000000", "California (CA)", "TECHNICAL SPECIALIST", etc.)
       continue;
+    }
+
+    // Preserve old job titles in markdown section headings
+    if (line.trim().startsWith('###') && originalExperiences.length > 0) {
+      for (const orig of originalExperiences) {
+        if (orig.company && orig.role) {
+          const compEscaped = orig.company.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex1 = new RegExp(`^###\\s*([^—\n]+?)\\s*—\\s*(${compEscaped}[^\n]*)`, 'i');
+          if (regex1.test(line.trim())) {
+            line = line.replace(regex1, `### ${orig.role} — $2`);
+            break;
+          }
+          const regex2 = new RegExp(`^###\\s*([^|\n]+?)\\s*\\|\\s*(${compEscaped}[^\n]*)`, 'i');
+          if (regex2.test(line.trim())) {
+            line = line.replace(regex2, `### ${orig.role} | $2`);
+            break;
+          }
+        }
+      }
     }
 
     result.push(line);
@@ -289,8 +314,9 @@ export function parseResumeContent(options: ResumeExportOptions): ParsedResumeDa
         'Python Programming'
       ];
 
-  // 5. Work Experience (Strictly prioritize user's authentic work history)
+  // 5. Work Experience (Strictly prioritize keeping old job titles intact while aligning duties)
   const experiences: Array<{ title: string; company: string; dates: string; bullets: string[] }> = [];
+  const originalExperiences = getAuthenticOriginalExperiences(profile, candidateRawText);
 
   // Check if tailoredResume contains authentic experiences (not placeholders)
   let hasValidTailoredExp = false;
@@ -298,23 +324,19 @@ export function parseResumeContent(options: ResumeExportOptions): ParsedResumeDa
     const firstCompany = tailoredResume.tailoredExperience[0]?.company || '';
     if (!isPlaceholderCompany(firstCompany)) {
       hasValidTailoredExp = true;
-      for (const exp of tailoredResume.tailoredExperience) {
-        let expTitle = exp.role || 'User Support Analyst';
-        const compLower = (exp.company || '').toLowerCase();
-        if (compLower.includes('transportation') || compLower.includes('department of information technology') || compLower.includes('ncdot')) {
-          expTitle = 'User Support Analyst';
-        } else if (compLower.includes('pta pizza')) {
-          expTitle = 'Delivery Driver';
-        } else if (compLower.includes('united zone')) {
-          expTitle = 'Sales / Customer Service';
-        } else if (/developer|software engineer/i.test(expTitle) && !/(?:software engineer \|)|(?:software developer \|)/i.test(candidateRawText)) {
-          expTitle = 'User Support Analyst';
-        }
+      for (let idx = 0; idx < tailoredResume.tailoredExperience.length; idx++) {
+        const exp = tailoredResume.tailoredExperience[idx];
+        const origMatch = findMatchingOriginalExperience(exp, idx, originalExperiences);
+
+        // Keep authentic old job title from original resume intact!
+        const expTitle = origMatch?.role || exp.role || profile?.title || 'User Support Analyst';
+        const expCompany = origMatch?.company || exp.company;
+        const expDates = origMatch?.dates || exp.dates || '2018 – Present';
 
         experiences.push({
           title: expTitle,
-          company: exp.company,
-          dates: exp.dates || '2018 – Present',
+          company: expCompany,
+          dates: expDates,
           bullets: exp.bullets.map((b) => {
             let cleaned = cleanBulletText(b.tailored || (b as any));
             if (!/(?:software engineer \|)|(?:software developer \|)/i.test(candidateRawText)) {
@@ -331,17 +353,18 @@ export function parseResumeContent(options: ResumeExportOptions): ParsedResumeDa
 
   // If tailoredResume had placeholders or empty, pull authentic parsed experiences from candidate profile / resume
   if (!hasValidTailoredExp) {
-    const parsedData = extractWorkExperienceAndEducationFromText(candidateRawText);
-    const sourceExperiences = (profile?.workExperience && profile.workExperience.length > 0)
+    const sourceExperiences = originalExperiences.length > 0
+      ? originalExperiences
+      : (profile?.workExperience && profile.workExperience.length > 0)
       ? profile.workExperience
-      : parsedData.experiences;
+      : extractWorkExperienceAndEducationFromText(candidateRawText).experiences;
 
     if (sourceExperiences && sourceExperiences.length > 0) {
       for (const exp of sourceExperiences) {
         experiences.push({
-          title: exp.role,
+          title: exp.role || 'User Support Analyst',
           company: exp.company,
-          dates: exp.dates,
+          dates: exp.dates || '2018 – Present',
           bullets: exp.bullets.map((b) => cleanBulletText(b)),
         });
       }

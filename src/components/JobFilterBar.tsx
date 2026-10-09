@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, MapPin, ArrowUpDown, BookmarkCheck, SlidersHorizontal, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { Search, MapPin, ArrowUpDown, BookmarkCheck, SlidersHorizontal, ChevronDown, ChevronUp, RotateCcw, Sparkles, Rocket } from 'lucide-react';
 import { JobFilterState } from '../types';
 import { US_STATE_NAMES } from '../utils/clientResumeParser';
 
@@ -29,7 +29,9 @@ export const JobFilterBar: React.FC<JobFilterBarProps> = ({
     (filters.seniority !== 'All' ? 1 : 0) +
     (filters.userState && filters.userState !== 'All States' ? 1 : 0) +
     (filters.maxSalary && filters.maxSalary > 0 ? 1 : 0) +
-    (filters.region !== 'All Regions' ? 1 : 0);
+    (filters.region !== 'All Regions' ? 1 : 0) +
+    (filters.includeStretchRoles === false ? 1 : 0) +
+    (filters.matchTierFilter && filters.matchTierFilter !== 'all' ? 1 : 0);
 
   const resetFilters = () => {
     onChange({
@@ -43,6 +45,8 @@ export const JobFilterBar: React.FC<JobFilterBarProps> = ({
       minMatchScore: 0,
       region: 'All Regions',
       sortBy: 'overallMatch',
+      includeStretchRoles: true,
+      matchTierFilter: 'all',
     });
   };
 
@@ -89,6 +93,62 @@ export const JobFilterBar: React.FC<JobFilterBarProps> = ({
 
         {/* Desktop Quick Filters */}
         <div className="hidden sm:flex flex-wrap items-center gap-2">
+          {/* Match Tier Segment: All / Achievable / Stretch */}
+          <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200/50 dark:border-slate-700 text-xs">
+            <button
+              onClick={() => onChange({ ...filters, matchTierFilter: 'all', includeStretchRoles: true })}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                filters.matchTierFilter === 'all' || !filters.matchTierFilter
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              All Openings
+            </button>
+            <button
+              onClick={() => onChange({ ...filters, matchTierFilter: 'achievableOnly' })}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                filters.matchTierFilter === 'achievableOnly'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 shadow-2xs font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Filter to grounded achievable roles matching your target compensation"
+            >
+              Achievable
+            </button>
+            <button
+              onClick={() => onChange({ ...filters, matchTierFilter: 'stretchOnly', includeStretchRoles: true })}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                filters.matchTierFilter === 'stretchOnly'
+                  ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Filter to stretch & reach roles with higher compensation bands"
+            >
+              🚀 Stretch Roles
+            </button>
+          </div>
+
+          {/* Quick Stretch Roles Toggle Button */}
+          <button
+            onClick={() =>
+              onChange({
+                ...filters,
+                includeStretchRoles: filters.includeStretchRoles === false ? true : false,
+                matchTierFilter: filters.includeStretchRoles === false ? 'all' : filters.matchTierFilter,
+              })
+            }
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+              filters.includeStretchRoles !== false
+                ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300/80 dark:border-amber-800 shadow-2xs'
+                : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750'
+            }`}
+            title="Include less achievable stretch roles with higher compensation and broader scope"
+          >
+            <Rocket className="w-3.5 h-3.5 text-amber-500" />
+            <span>{filters.includeStretchRoles !== false ? 'Include Stretch Roles: ON' : 'Stretch Roles: OFF'}</span>
+          </button>
+
           {/* Applied Filter Toggle */}
           <button
             onClick={() => onChange({ ...filters, onlyApplied: !filters.onlyApplied })}
@@ -184,6 +244,42 @@ export const JobFilterBar: React.FC<JobFilterBarProps> = ({
       {/* Mobile Expandable Filter Drawer */}
       {mobileExpanded && (
         <div className="sm:hidden pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3 animate-in slide-in-from-top-2 duration-150">
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Role Match Tier</label>
+            <div className="grid grid-cols-3 gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs">
+              <button
+                onClick={() => onChange({ ...filters, matchTierFilter: 'all', includeStretchRoles: true })}
+                className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  filters.matchTierFilter === 'all' || !filters.matchTierFilter
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                All Roles
+              </button>
+              <button
+                onClick={() => onChange({ ...filters, matchTierFilter: 'achievableOnly' })}
+                className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  filters.matchTierFilter === 'achievableOnly'
+                    ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 shadow-2xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                Achievable
+              </button>
+              <button
+                onClick={() => onChange({ ...filters, matchTierFilter: 'stretchOnly', includeStretchRoles: true })}
+                className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  filters.matchTierFilter === 'stretchOnly'
+                    ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                🚀 Stretch
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Seniority</label>
             <div className="grid grid-cols-4 gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs">

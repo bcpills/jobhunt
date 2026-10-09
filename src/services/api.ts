@@ -6,6 +6,7 @@ import {
   generateClientSideCoverLetter,
   generateClientSideCompanyResearch,
   sanitizeTailoredResumeContent,
+  extractWorkExperienceAndEducationFromText,
 } from '../utils/clientResumeParser';
 
 /**
@@ -115,6 +116,21 @@ export async function analyzeResume(params: {
         if (params.userState) data.profile.userState = params.userState;
         if (params.targetSalaryMin) data.profile.targetSalaryMin = params.targetSalaryMin;
         if (params.targetSalaryMax) data.profile.targetSalaryMax = params.targetSalaryMax;
+
+        // Ensure workExperience and educationHistory are attached so downstream tailoring has complete ground truth
+        if (!data.profile.workExperience || data.profile.workExperience.length === 0) {
+          const parsed = extractWorkExperienceAndEducationFromText(effectiveText || data.profile.extractedResumeText || '');
+          if (parsed.experiences.length > 0) {
+            data.profile.workExperience = parsed.experiences;
+          }
+        }
+        if (!data.profile.educationHistory || data.profile.educationHistory.length === 0) {
+          const parsed = extractWorkExperienceAndEducationFromText(effectiveText || data.profile.extractedResumeText || '');
+          if (parsed.education.length > 0) {
+            data.profile.educationHistory = parsed.education;
+          }
+        }
+
         return data.profile;
       }
     }

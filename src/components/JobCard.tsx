@@ -43,6 +43,7 @@ export const JobCard: React.FC<JobCardProps> = ({
   const [showAlgorithmDetails, setShowAlgorithmDetails] = useState(false);
 
   // Match color styling
+  const isStretch = job.matchTier === 'Stretch Role';
   const isHighMatch = job.matchScore >= 88;
   const isModerateMatch = job.matchScore >= 78 && job.matchScore < 88;
 
@@ -111,8 +112,8 @@ export const JobCard: React.FC<JobCardProps> = ({
                 <span className="text-indigo-700 dark:text-indigo-400 font-medium">{job.workArrangement}</span>
               </div>
 
-              {/* State Eligibility Pill */}
-              <div className="mt-1 flex items-center gap-1.5">
+              {/* State Eligibility Pill & Stretch Badge */}
+              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                 {isNationwide ? (
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 px-2 py-0.5 rounded">
                     🌐 Nationwide (All 50 States)
@@ -126,6 +127,12 @@ export const JobCard: React.FC<JobCardProps> = ({
                     📍 State-Specific
                   </span>
                 )}
+
+                {isStretch && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50/90 dark:bg-amber-950/80 border border-amber-300/80 dark:border-amber-800 px-2 py-0.5 rounded">
+                    🚀 Stretch Role
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -134,7 +141,9 @@ export const JobCard: React.FC<JobCardProps> = ({
           <div className="text-right shrink-0">
             <div
               className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold ${
-                isHighMatch
+                isStretch
+                  ? 'bg-amber-100/80 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shadow-2xs'
+                  : isHighMatch
                   ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800'
                   : isModerateMatch
                   ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800'
@@ -143,7 +152,14 @@ export const JobCard: React.FC<JobCardProps> = ({
             >
               <span>{job.matchScore}% Match</span>
             </div>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium">{job.matchTier}</p>
+            <p className={`text-[11px] mt-0.5 font-semibold flex items-center justify-end gap-1 ${
+              isStretch
+                ? 'text-amber-700 dark:text-amber-400 font-bold'
+                : 'text-slate-500 dark:text-slate-400 font-medium'
+            }`}>
+              {isStretch && <span>🚀</span>}
+              <span>{job.matchTier}</span>
+            </p>
           </div>
         </div>
 

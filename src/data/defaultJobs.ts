@@ -1040,81 +1040,81 @@ export const DEFAULT_REMOTE_JOBS: JobOpening[] = [
     source: 'Rackspace Careers'
   },
   {
-    id: 'job-squarespace-support-19',
-    title: 'Customer Operations & Technical Support Associate',
-    company: 'Squarespace',
-    companyDomain: 'squarespace.com',
-    location: 'Remote (US - 35 Eligible States)',
-    timezoneRequirement: 'US Timezones (EST / CST / PST)',
-    workArrangement: '100% Remote · Creative Web Platforms',
-    salary: '$50,000 - $66,000 / yr + Equity',
-    matchScore: 90,
-    matchTier: 'Solid Fit',
-    eligibleStates: ['NC', 'TX', 'FL', 'OH', 'VA', 'GA', 'NY', 'CA', 'IL', 'PA', 'All US'],
-    stateEligibilityNote: 'Remote in 35 US states (including NC, TX, FL, OH, VA, GA, NY, CA)',
+    id: 'job-github-stretch-19',
+    title: 'Senior Enterprise IT Systems & Infrastructure Specialist',
+    company: 'GitHub',
+    companyDomain: 'github.com',
+    location: 'Remote (US - All 50 States)',
+    timezoneRequirement: 'US Timezones Flexible',
+    workArrangement: '100% Remote · Developer Platform Leader',
+    salary: '$88,000 - $115,000 / yr + Microsoft RSUs',
+    matchScore: 85,
+    matchTier: 'Stretch Role',
+    eligibleStates: ['All US', 'NC', 'TX', 'FL', 'OH', 'VA', 'GA', 'NY', 'CA', 'IL', 'PA'],
+    stateEligibilityNote: 'Nationwide Remote: Open to all 50 US states',
     isStateSpecific: false,
-    trajectoryFitScore: 89,
-    cultureFitScore: 92,
-    skillOverlapScore: 89,
+    trajectoryFitScore: 86,
+    cultureFitScore: 88,
+    skillOverlapScore: 84,
     careerTrajectoryAnalysis:
-      'Leverage technical diagnostic skills and web programming coursework (HTML, CSS, JavaScript) to help entrepreneurs build their digital presence.',
+      'Ambitious stretch opportunity: Elevates hands-on IT support and diagnostics into senior enterprise fleet administration and identity governance at GitHub.',
     cultureFitDetails: {
-      companyStage: 'Public Creative SaaS (1,700+ employees)',
-      operatingStyle: 'Design excellence, high written communication polish, independent problem solving',
-      alignmentNotes: 'Rewards candidates who communicate with clarity, empathy, and technical curiosity.'
+      companyStage: 'World’s #1 Developer Platform (Subsidiary of Microsoft)',
+      operatingStyle: 'Async-first, high autonomy, written RFCs, high engineering standards',
+      alignmentNotes: 'Rewards candidates ready to step up into infrastructure automation.'
     },
     skillOverlapDetails: {
-      matchedCore: ['User Technical Support', 'Diagnostic Troubleshooting', 'Web Fundamentals (HTML/CSS/JS)'],
-      transferableSkills: ['Ticketing SLAs', 'Documentation'],
-      gaps: ['Squarespace CMS internal dashboard']
+      matchedCore: ['User Technical Support', 'Diagnostic Troubleshooting', 'Active Directory', 'Asset Management'],
+      transferableSkills: ['Ticketing SLAs', 'Documentation', 'Python Scripting'],
+      gaps: ['Infrastructure automation', 'Zero-Trust endpoint telemetry']
     },
     matchReasoning: [
-      'Coursework and certificates in web programming (HTML, CSS, JavaScript, Python).',
-      'Proven customer service and user enablement patience.',
-      'Strong written communication skills.'
+      'Extensive technical diagnostic background provides a solid operational foundation.',
+      'Higher compensation tier reflecting senior enterprise scope.',
+      'Demonstrated asynchronous reliability in enterprise fleet support.'
     ],
-    skillGaps: ['Build a sample test site on Squarespace to understand the platform interface.'],
-    description: `Squarespace empowers millions of dreamers, makers, and businesses. We are hiring a Customer Operations & Technical Support Associate to solve customer questions, troubleshoot custom code and domains, and provide friendly guidance.`,
+    skillGaps: ['Review GitHub Actions automation workflows.'],
+    description: `GitHub is looking for a Senior Enterprise IT Systems Specialist to manage workstation infrastructure, fleet compliance, and access automation for our global workforce.`,
     keyResponsibilities: [
-      'Provide accurate, empathetic technical support via live chat and email.',
-      'Diagnose issues with custom domains, DNS records, browser formatting, and platform tools.',
-      'Identify and report bugs to product development teams with clear reproduction steps.'
+      'Architect Zero-Touch provisioning workflows across macOS and Windows fleets.',
+      'Automate SaaS user lifecycle management and audit compliance reporting.',
+      'Partner with security to enforce endpoint posture and zero-trust controls.'
     ],
     requirements: [
-      '1-3 years in technical support, customer operations, or web help desk.',
-      'Familiarity with basic HTML, CSS, and how web domains function.',
-      'Strong writing speed, empathy, and attention to detail.'
+      '4+ years in IT technical support, systems security, or desktop operations.',
+      'Familiarity with Active Directory, identity systems, and automation scripts.',
+      'Outstanding async written communication and proactive problem resolution.'
     ],
     benefits: [
+      'Top-tier base salary + Microsoft stock grants (RSUs)',
       '100% Remote work from home',
-      'Free Squarespace accounts and subscriptions for you and friends',
       'Equity grant and 401(k) with company match',
       '100% company-paid healthcare premiums'
     ],
     postedDate: '1 week ago',
     applicantCompetition: 'Moderate',
-    applyUrl: 'https://www.squarespace.com/about/careers',
-    source: 'Squarespace Careers'
+    applyUrl: 'https://github.com/about/careers',
+    source: 'GitHub Careers'
   },
   {
     id: 'job-duckduckgo-ops-20',
-    title: 'Workplace Operations & Security Support Specialist',
+    title: 'Distributed Workplace Operations & Security Lead',
     company: 'DuckDuckGo',
     companyDomain: 'duckduckgo.com',
     location: 'Remote (Worldwide / US)',
     timezoneRequirement: 'Any Timezone',
     workArrangement: '100% Remote · Privacy First',
-    salary: '$70,000 - $92,000 / yr + Team Profit Share',
-    matchScore: 91,
-    matchTier: 'Strong Match',
+    salary: '$92,000 - $122,000 / yr + Team Profit Share',
+    matchScore: 84,
+    matchTier: 'Stretch Role',
     eligibleStates: ['All US', 'NC', 'TX', 'FL', 'OH', 'VA', 'GA', 'NY', 'CA'],
     stateEligibilityNote: 'Worldwide Remote / All 50 US States (100% distributed since founding)',
     isStateSpecific: false,
-    trajectoryFitScore: 91,
-    cultureFitScore: 95,
-    skillOverlapScore: 90,
+    trajectoryFitScore: 85,
+    cultureFitScore: 88,
+    skillOverlapScore: 83,
     careerTrajectoryAnalysis:
-      'Privacy-first search and browser company: Lead internal hardware security, endpoint compliance, and remote user onboarding.',
+      'High-upside reach role: Lead endpoint security, Zero-Trust compliance, and worldwide equipment operations at DuckDuckGo.',
     cultureFitDetails: {
       companyStage: 'Profitable Privacy Leader (250+ employees)',
       operatingStyle: 'Strictly asynchronous, transparent project roadmaps, no meetings, high autonomy',
@@ -1123,7 +1123,7 @@ export const DEFAULT_REMOTE_JOBS: JobOpening[] = [
     skillOverlapDetails: {
       matchedCore: ['Endpoint Hardware Diagnostics', 'Security & Access Control', 'User Support', 'Asset Management'],
       transferableSkills: ['Python Scripting', 'Privacy Best Practices', 'Documentation'],
-      gaps: ['Open-source privacy auditing tools']
+      gaps: ['Open-source privacy auditing tools', 'Zero-Trust identity orchestration']
     },
     matchReasoning: [
       'Experience managing enterprise domain security, Active Directory, and equipment provisioning.',
@@ -1131,14 +1131,14 @@ export const DEFAULT_REMOTE_JOBS: JobOpening[] = [
       'Python programming foundation allows ongoing task automation.'
     ],
     skillGaps: ['Review DuckDuckGo’s open company culture guides and privacy mission.'],
-    description: `DuckDuckGo is the independent privacy company. We are hiring a Workplace Operations & Security Support Specialist to maintain our distributed team’s laptops, manage password and identity tools, and ensure endpoint security standards.`,
+    description: `DuckDuckGo is the independent privacy company. We are hiring a Workplace Operations & Security Lead to maintain our distributed team’s laptops, manage password and identity tools, and ensure endpoint security standards.`,
     keyResponsibilities: [
       'Procure, configure, and securely ship encrypted workstations to team members globally.',
       'Administer cloud identity access, password managers, and multi-factor authentication systems.',
       'Resolve IT and hardware questions asynchronously through project tickets and chat.'
     ],
     requirements: [
-      '3+ years in IT technical support, systems security, or desktop operations.',
+      '4+ years in IT technical support, systems security, or desktop operations.',
       'Passion for digital privacy and endpoint security best practices.',
       'Exceptional written communication skills in English.'
     ],

@@ -75,6 +75,8 @@ export default function App() {
     minMatchScore: 0,
     region: 'All Regions',
     sortBy: 'overallMatch',
+    includeStretchRoles: true,
+    matchTierFilter: 'all',
   });
 
   // Persistence State
@@ -260,6 +262,8 @@ export default function App() {
         ...prev,
         userState: effectiveState,
         maxSalary: salary?.max || 0,
+        includeStretchRoles: true,
+        matchTierFilter: 'all',
       }));
 
       // Cache locally immediately
@@ -312,6 +316,8 @@ export default function App() {
         ...prev,
         userState: effectiveState,
         maxSalary: salary?.max || 0,
+        includeStretchRoles: true,
+        matchTierFilter: 'all',
       }));
 
       // Cache locally immediately
@@ -512,11 +518,17 @@ export default function App() {
       // 2. State-Specific Remote Restriction Filter
       if (filters.onlyMyState || (filters.userState && filters.userState !== 'All States')) {
         const checkState = filters.userState && filters.userState !== 'All States' ? filters.userState : activeUserState;
+        const locLower = job.location.toLowerCase();
         const isNationwide =
-          job.eligibleStates?.includes('All US') ||
-          job.location.toLowerCase().includes('all 50 states') ||
-          job.location.toLowerCase().includes('worldwide') ||
-          job.location.toLowerCase().includes('anywhere');
+          !job.eligibleStates ||
+          job.eligibleStates.length === 0 ||
+          job.eligibleStates.includes('All US') ||
+          locLower.includes('all 50 states') ||
+          locLower.includes('nationwide') ||
+          locLower.includes('worldwide') ||
+          locLower.includes('anywhere') ||
+          locLower.includes('all states') ||
+          locLower.includes('us');
 
         const isStateEligible = job.eligibleStates?.includes(checkState);
 
@@ -525,11 +537,30 @@ export default function App() {
         }
       }
 
-      // 3. Achievable Salary Filter (Maximum Salary Ceiling)
+      // 3. Match Tier & Stretch Roles (Less Achievable / Growth Roles)
+      const isStretch = job.matchTier === 'Stretch Role';
+
+      if (filters.matchTierFilter === 'achievableOnly' && isStretch) {
+        return false;
+      }
+      if (filters.matchTierFilter === 'stretchOnly' && !isStretch) {
+        return false;
+      }
+
+      // If user specifically unchecked stretch roles, hide them
+      if (filters.includeStretchRoles === false && isStretch) {
+        return false;
+      }
+
+      // 4. Achievable Salary Filter (Maximum Salary Ceiling)
+      // When stretch roles are enabled (default), stretch roles are exempt from the achievable ceiling
+      // so the user gets to see ambitious growth opportunities alongside grounded matches!
       if (filters.maxSalary && filters.maxSalary > 0) {
-        const parsed = parseSalaryRange(job.salary);
-        if (parsed.min > filters.maxSalary) {
-          return false;
+        if (!isStretch) {
+          const parsed = parseSalaryRange(job.salary);
+          if (parsed.min > filters.maxSalary) {
+            return false;
+          }
         }
       }
 
@@ -619,6 +650,8 @@ export default function App() {
   }, [jobs, filters, profile, appliedJobsMap]);
 
   const appliedCount = Object.keys(appliedJobsMap).length;
+  const achievableCount = useMemo(() => jobs.filter((j) => j.matchTier !== 'Stretch Role').length, [jobs]);
+  const stretchCount = useMemo(() => jobs.filter((j) => j.matchTier === 'Stretch Role').length, [jobs]);
 
   return (
     <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
@@ -776,12 +809,19 @@ export default function App() {
             {/* Section Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                     {filters.onlyApplied
                       ? `Applied Opportunities (${filteredJobs.length})`
-                      : `Achievable Remote Opportunities (${filteredJobs.length})`}
+                      : `Matched Remote Opportunities (${filteredJobs.length})`}
                   </h2>
+                  {stretchCount > 0 && !filters.onlyApplied && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800">
+                      <span>{achievableCount} Achievable</span>
+                      <span>·</span>
+                      <span className="text-amber-700 dark:text-amber-300">🚀 {stretchCount} Stretch Roles</span>
+                    </span>
+                  )}
                   {isLoadingJobs && (
                     <RefreshCw className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-spin" />
                   )}
@@ -789,7 +829,7 @@ export default function App() {
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {filters.onlyApplied
                     ? 'Showing positions you have marked as applied for. Keep track of status and interview prep.'
-                    : `Filtered for realistic salaries and verified state eligibility in ${filters.userState || profile.userState || 'your state'}. Showing job descriptions first.`}
+                    : `Grounded in realistic market salaries and verified nationwide/state eligibility in ${filters.userState || profile.userState || 'your state'}, plus ambitious stretch openings.`}
                 </p>
               </div>
 
@@ -827,6 +867,36 @@ export default function App() {
               appliedCount={appliedCount}
               userState={profile.userState || 'NC'}
             />
+
+            {/* Single Opening Notification Banner */}
+            {filteredJobs.length === 1 && !filters.onlyApplied && (
+              <div className="mb-4 p-3.5 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/90 dark:border-amber-900/60 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950 dark:text-amber-200 shadow-2xs animate-in fade-in duration-200">
+                <div className="flex items-start sm:items-center gap-2.5">
+                  <span className="text-base leading-none">💡</span>
+                  <div>
+                    <span className="font-bold">Currently viewing 1 opening.</span>{' '}
+                    <span>Your active filters may be restricting your view. We include ambitious stretch roles so you have plenty of options.</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        maxSalary: 0,
+                        seniority: 'All',
+                        userState: 'All States',
+                        includeStretchRoles: true,
+                        matchTierFilter: 'all',
+                      }))
+                    }
+                    className="px-3 py-1.5 font-bold rounded-xl bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-2xs text-xs"
+                  >
+                    View All {jobs.length} Openings
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Jobs Grid - Optimized for Mobile (1 col) and Desktop (2-3 cols) */}
             {filteredJobs.length > 0 ? (
